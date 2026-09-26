@@ -75,7 +75,7 @@ export function mountMap(root: HTMLElement, deps: MapDeps): () => void {
     `<div class="map-track">${trail}</div>` +
     `</div></div>` +
     `<header class="map-hud">` +
-    `<span class="hud-coins map-coins" aria-label="${save.coins} coins"><span class="coin" aria-hidden="true"></span><span class="hud-coin-value" aria-hidden="true">${save.coins}</span></span>` +
+    `<span class="hud-coins map-coins"><span class="coin" aria-hidden="true"></span><span class="hud-coin-value">${save.coins}</span></span>` +
     `<h1 class="map-title">${APP_NAME}</h1>` +
     `</header>`;
   const scroller = screen.querySelector<HTMLElement>('.map-scroll')!;
