@@ -6,6 +6,7 @@ import type { Card, Top } from '../core/cards';
 import { isExposed, type Layout } from '../core/layout';
 import { cardBackSvg, cardFaceSvg, wildCardSvg } from './art/cardArt';
 import { fitBoard } from './boardFit';
+import { hudBoxes } from './frame';
 
 const SUIT_NAMES = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
 const RANK_NAMES = ['', 'Ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Jack', 'Queen', 'King'] as const;
@@ -72,7 +73,7 @@ export function createBoard(
       });
     },
     fit() {
-      const f = fitBoard(area.clientWidth, area.clientHeight, layout);
+      const f = fitBoard(area.clientWidth, area.clientHeight, layout, hudBoxes(area.clientWidth));
       layout.slots.forEach((s, i) => {
         const st = slots[i].style;
         st.left = `${f.offsetX + s.x * f.cardW}px`;

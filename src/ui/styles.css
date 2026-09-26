@@ -123,7 +123,8 @@ body::after {
   box-shadow: inset 0 0 0 2px #b8862b;
 }
 
-/* HUD */
+/* HUD: two corner boxes of --hud-left-w / --hud-right-w by --hud-h (set from src/ui/frame.ts, whose
+   hudBoxes keep the board's cards clear of them). Nothing in the HUD may draw outside those boxes. */
 
 .hud {
   position: relative;
@@ -131,10 +132,11 @@ body::after {
   grid-area: 1 / 1 / 3 / 3;
   align-self: start;
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  grid-template-rows: 44px auto;
-  gap: 4px 8px;
-  padding: 4px;
+  grid-template-columns: calc(var(--hud-left-w) - 4px) minmax(0, 1fr) calc(var(--hud-right-w) - 4px);
+  grid-template-rows: 44px calc(var(--hud-h) - 52px);
+  gap: 4px 0;
+  height: var(--hud-h);
+  padding: 4px 4px 0;
   pointer-events: none; /* the board runs under the HUD; only the back button takes taps */
 }
 
@@ -154,6 +156,11 @@ body::after {
 .hud-level {
   grid-area: 2 / 1;
   justify-self: start;
+  align-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   padding: 1px 8px;
   border-radius: 999px;
   background: rgba(20, 29, 59, 0.6);
@@ -166,7 +173,9 @@ body::after {
   position: relative;
   grid-area: 2 / 3;
   justify-self: end;
+  align-self: start;
   min-width: 44px;
+  max-width: 100%;
   padding: 1px 10px;
   font-size: 14px;
   border-radius: 999px;
@@ -204,6 +213,8 @@ body::after {
   align-items: center;
   gap: 6px;
   min-width: 64px;
+  max-width: 100%;
+  overflow: hidden;
   padding: 4px 12px 4px 6px;
   border-radius: 999px;
   background: rgba(20, 29, 59, 0.7);

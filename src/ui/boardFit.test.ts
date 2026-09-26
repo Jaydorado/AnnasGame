@@ -1,14 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { LAYOUTS } from '../core/layouts';
-import { CARD_ASPECT, MAX_ROW_STEP, MIN_ROW_STEP, fitBoard } from './boardFit';
-import { boardArea } from './frame';
+import { CARD_ASPECT, MAX_ROW_STEP, MIN_ROW_STEP, fitBoard, type TopBox } from './boardFit';
+import { boardArea, hudBoxes } from './frame';
 
 const EPS = 1e-9;
 const layouts = Object.values(LAYOUTS);
+const VIEWPORTS = [
+  [800, 360],
+  [640, 360],
+  [915, 412],
+] as const;
 
 /** Every slot's rectangle stays inside the board area. */
-function expectInside(areaW: number, areaH: number, layout: (typeof layouts)[number]): void {
-  const f = fitBoard(areaW, areaH, layout);
+function expectInside(areaW: number, areaH: number, layout: (typeof layouts)[number], avoid: readonly TopBox[] = []): void {
+  const f = fitBoard(areaW, areaH, layout, avoid);
   expect(f.cardH).toBeCloseTo(f.cardW * CARD_ASPECT, 9);
   expect(f.rowStep).toBeGreaterThanOrEqual(MIN_ROW_STEP);
   expect(f.rowStep).toBeLessThanOrEqual(MAX_ROW_STEP);
@@ -51,5 +56,44 @@ describe('fitBoard in the landscape frame', () => {
     const f = fitBoard(2000, 200, LAYOUTS.diamond);
     expect(f.rowStep).toBe(MIN_ROW_STEP);
     expectInside(2000, 200, LAYOUTS.diamond);
+  });
+});
+
+describe('fitBoard around the HUD corners', () => {
+  it.each(VIEWPORTS)('at %ix%i no slot of any layout sits under the HUD corner boxes', (vw, vh) => {
+    const { w, h } = boardArea(vw, vh);
+    const boxes = hudBoxes(w);
+    const hits: string[] = [];
+    for (const layout of layouts) {
+      const f = fitBoard(w, h, layout, boxes);
+      layout.slots.forEach((s, i) => {
+        const left = f.offsetX + s.x * f.cardW;
+        const top = f.offsetY + s.row * f.rowStep * f.cardH;
+        boxes.forEach((b, k) => {
+          if (left < b.right - EPS && b.left < left + f.cardW - EPS && top < b.bottom - EPS) {
+            hits.push(`${layout.id} slot ${i} under ${k === 0 ? 'left' : 'right'} box`);
+          }
+        });
+      });
+      expectInside(w, h, layout, boxes);
+    }
+    expect(hits).toEqual([]);
+  });
+
+  it.each([
+    [800, 360, 60],
+    [640, 360, 52],
+  ])('at %ix%i the card-width floor of %i px still holds with the HUD cleared', (vw, vh, floor) => {
+    const { w, h } = boardArea(vw, vh);
+    for (const layout of layouts) {
+      expect(fitBoard(w, h, layout, hudBoxes(w)).cardW, layout.id).toBeGreaterThanOrEqual(floor);
+    }
+  });
+
+  it.each(VIEWPORTS)('at %ix%i layouts with empty corners keep their full size', (vw, vh) => {
+    const { w, h } = boardArea(vw, vh);
+    for (const layout of [LAYOUTS.threePeaks, LAYOUTS.pyramid, LAYOUTS.diamond]) {
+      expect(fitBoard(w, h, layout, hudBoxes(w)), layout.id).toEqual(fitBoard(w, h, layout));
+    }
   });
 });
