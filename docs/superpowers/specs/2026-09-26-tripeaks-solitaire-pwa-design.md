@@ -1,10 +1,10 @@
 # TriPeaks Solitaire PWA — Design
 
-Date: 2026-09-26. Status: design approved in chat by Jay; spec awaiting review.
+Date: 2026-09-26. Status: approved by Jay 2026-09-26 (theme changed to cats at approval).
 
 ## Goal
 
-A Disney-Solitaire-inspired TriPeaks game for one player (Jay's girlfriend) on an Android phone. Installed from a URL as a PWA, fully offline. Earn-only progression: no microtransactions, no waiting.
+A cat-themed TriPeaks game, inspired by Disney Solitaire's gameplay, for one player (Jay's girlfriend) on an Android phone. Installed from a URL as a PWA, fully offline. Earn-only progression: no microtransactions, no waiting.
 
 Inspiration: SuperPlay's *Disney Solitaire* (TriPeaks with streaks, Wild / Undo / +5 boosters, level map). Her main complaint about it — having to wait for or buy gold — is the thing this game must not do.
 
@@ -12,7 +12,7 @@ Inspiration: SuperPlay's *Disney Solitaire* (TriPeaks with streaks, Wild / Undo 
 
 - **No pay, no wait.** No real-money store, no lives/energy, no timers, no daily caps, no ads, no premium currency. Retrying any level is instant and free. Losing never costs coins.
 - **Every level is winnable without boosters**, proven by a solver in the test suite.
-- **No Disney IP** in the repo or build: own art only.
+- **No Disney IP** in the repo or build: own cat-themed art only.
 - **Offline after first load**; progress persists on the device.
 - Target: Android Chrome (current), portrait, viewport ≥ 360×640 CSS px.
 
@@ -23,10 +23,10 @@ In v1:
 - Boosters: Undo, Wild card, +5 cards — bought with earned coins.
 - 25 hand-authored levels on a scrolling level map, 1–3 stars each.
 - Coins earned by play, persisted.
-- Own Disney-inspired art (code-drawn), CSS animations, sparkle/confetti effects.
+- Own cat-themed art (code-drawn SVG), CSS animations, paw-print sparkle/confetti effects.
 - PWA install + offline, hosted on GitHub Pages.
 
-Out of v1 (possible later): special tiles (puzzle pieces, frames, carriage/wands), Runner cards, stars→scene-rebuild meta, sound/music, cloud sync/accounts, iOS save export, real Disney images.
+Out of v1 (possible later): special tiles (puzzle pieces, frames, carriage/wands), Runner cards, stars→scene-rebuild meta, sound/music, cloud sync/accounts, iOS save export, photo-based cat art.
 
 ## Stack
 
@@ -37,17 +37,18 @@ TypeScript + Vite. Cards are DOM elements positioned with CSS transforms. `vite-
 ```
 src/
   core/                 pure TS; no DOM, no timers, no Math.random
-    cards.ts            Card { rank: 1..13, suit: 0..3 }; canPlay(card, top)
+    cards.ts            Card { rank: 1..13, suit: 0..3 }; ranksAdjacent, canPlay(card, top), fullDeck
     rng.ts              seeded PRNG (mulberry32) + Fisher–Yates shuffle
-    layout.ts           Layout / Slot types; faceUp(slot, removed)
-    layouts/            named layout data (threePeaks, pyramid, diamond, twinPeaks, fan)
-    game.ts             GameState, newGame(level), reducer(state, action) -> state
-    economy.ts          coin constants and reward/cost functions
+    layout.ts           Layout / Slot types; buildLayout(rows); isExposed(slot, table)
+    layouts.ts          named layout data (threePeaks, pyramid, diamond, twinPeaks, wall)
+    level.ts            LevelDef type
+    economy.ts          coin constants, streakBonus, starsFor
+    game.ts             GameState, deal(level, coins), reduce(state, action) -> state
     solver.ts           boosterless solvability check (tests + level authoring)
   levels/levels.ts      the 25 level definitions
   progress/save.ts      versioned localStorage persistence
   ui/
-    render.ts           board DOM, card elements, transitions
+    board.ts            board DOM, card elements, transitions
     hud.ts              coins, streak, stock count, booster buttons
     map.ts              level map screen
     dialogs.ts          win / out-of-moves dialogs
@@ -106,7 +107,7 @@ Level definition:
 ```ts
 interface LevelDef {
   id: number;          // 1..25, map order
-  layoutId: LayoutId;  // 'threePeaks' | 'pyramid' | 'diamond' | 'twinPeaks' | 'fan'
+  layoutId: LayoutId;  // 'threePeaks' | 'pyramid' | 'diamond' | 'twinPeaks' | 'wall'
   seed: number;
   stockSize: number;   // 24 early → ~16 late
   star2: number;
@@ -114,9 +115,9 @@ interface LevelDef {
 }
 ```
 
-Layouts (card counts are targets; exact coordinates are plan work): `threePeaks` 28 (classic 3-6-9-10 rows), `pyramid` 21, `diamond` ~25, `twinPeaks` ~24, `fan` ~26.
+Layouts are rows of x positions (card-width units); a slot is covered by the slots in the next row whose x differs by exactly 0.5. `threePeaks` 28 (classic 3-6-9-10 rows), `pyramid` 21 (rows 1–6), `diamond` 25 (rows 1-2-3-4-5-4-3-2-1), `twinPeaks` 20 (rows 2-4-6-8), `wall` 28 (rows 6-5-6-5-6).
 
-Difficulty curve: levels 1–5 `threePeaks` with stock 24; new layouts introduced one at a time; stock shrinks toward ~16 by level 25. Seeds are picked with `tools/findSeeds.ts`: shuffle candidates, keep those the solver wins without boosters, choose among them by the solver's minimum draws-needed to hit the intended difficulty. `star2`/`star3` are set from the solver's best achievable leftover stock (e.g. `star3` = best, `star2` ≈ half of best, min 1).
+Difficulty curve: levels 1–5 `threePeaks` with stock 24; new layouts introduced one at a time; stock shrinks toward 16 by level 25. Seeds are picked with `tools/findSeeds.ts`: try seeds in order, keep the first one the solver wins without boosters whose best achievable leftover stock (`best`) falls in the level's target band (bands tighten toward the end). Stars: `star3 = max(2, ceil(best × 0.6))`, `star2 = max(1, floor(star3 / 2))`.
 
 **Solver.** Depth-first search over (removed-slot bitmask, stock position, discard top); memoized; boosterless. Returns winnable yes/no and the maximum stock left at a win.
 
@@ -147,14 +148,18 @@ Missing, unparsable, or schema-invalid save → fresh save (100 coins, level 1 u
 
 ## Art & motion
 
-- Code-drawn SVG card faces with large rank + suit pips readable at phone size; card back is a starry night sky with a castle silhouette.
+- **Theme: cats.** All art is code-drawn SVG (no image files besides generated icons).
+- Card faces: large rank + suit pips readable at phone size. Court cards show simple cat portraits: J = kitten, Q = cat with a bow, K = cat with a crown; Ace carries a small paw print.
+- Card back: night sky with a moon and a cat silhouette sitting on a rooftop.
+- Map: path drawn as paw prints; level nodes are yarn balls; a cat icon sits on the current level.
+- Effects: paw-print sparkle burst on each play; win confetti of hearts, fish, and paw prints; a cat pops up with the stars on the win dialog.
 - Palette: deep night blue, gold, soft pink; background gradient with subtle twinkling stars.
 - Motion: card slide to discard and flip via CSS 3D transforms (transform/opacity only); sparkle burst on each play; glowing streak meter; confetti + star pop on win. Respect `prefers-reduced-motion` by shortening/removing non-essential effects.
 
 ## PWA & hosting
 
 - `vite-plugin-pwa`, `registerType: 'autoUpdate'`; precache all build assets; app works offline after first load.
-- Manifest: name "Solitaire Dreams" (short name "Solitaire"), `display: standalone`, `orientation: portrait`, theme/background colors from the palette, 192/512 px and maskable icons (own art).
+- Manifest: name "Solitaire Dreams" (short name "Solitaire"), `display: standalone`, `orientation: portrait`, theme/background colors from the palette, 192/512 px and maskable icons (cat-face art).
 - Vite `base` taken from env `VITE_BASE` (set to `/AnnasGame/` in CI) so Pages sub-path hosting works. Live URL: `https://jaydorado.github.io/AnnasGame/`.
 - GitHub Actions workflow: on push to `main`, `npm ci`, `npm test`, `npm run build`, deploy `dist/` to GitHub Pages.
 - Repo: `https://github.com/Jaydorado/AnnasGame`. Needs Jay: enable Pages (Settings → Pages → Source: GitHub Actions). Then send her the URL; she opens it in Chrome → "Install app".
