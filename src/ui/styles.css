@@ -9,6 +9,8 @@
   /* Card corners (10% of the width on a 100x140 card) and the soft shadow cards cast on the table */
   --card-r: 10% / 7.143%;
   --card-shadow: 0 1px 2px rgba(60, 20, 2, 0.35), 0 3px 8px rgba(60, 20, 2, 0.3);
+  /* Chunky rounded UI type; system fonts only, nothing is downloaded */
+  --font-round: ui-rounded, "SF Pro Rounded", "Nunito", "Arial Rounded MT Bold", "Varela Round", system-ui, sans-serif;
 }
 
 *,
@@ -96,6 +98,7 @@ body::after {
   grid-template-rows: minmax(0, 1fr) var(--strip-h);
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   overflow: hidden;
+  font-family: var(--font-round);
 }
 
 /* Warm cartoon wooden tabletop: amber radial glow, soft plank grain, dark vignette at the edges.
@@ -137,66 +140,150 @@ body::after {
   box-shadow: inset 0 0 0 2px #b8862b;
 }
 
+/* Toy-like glossy coin for the level screen: gold disc with a bright spot and a darker rim. */
+.level .coin {
+  background: radial-gradient(circle at 36% 30%, #fff8d6 0 14%, #ffd84a 40%, #f2a81c 78%, #c7761a);
+  box-shadow: inset 0 0 0 1.5px #a8631a, inset 0 -2px 0 1px rgba(150, 80, 10, 0.35), 0 1px 1px rgba(60, 20, 2, 0.35);
+}
+
+/* Chunky outlined numbers and labels: fill colour plus an 8-way outline in --ol and a dark bottom lip. */
+.hud-coin-value,
+.hud-level,
+.hud-streak,
+.booster-name,
+.booster-cost,
+.dialog h2,
+.dialog .wallet,
+.dialog-actions button {
+  text-shadow:
+    1.5px 0 var(--ol), -1.5px 0 var(--ol), 0 1.5px var(--ol), 0 -1.5px var(--ol),
+    1.1px 1.1px var(--ol), -1.1px 1.1px var(--ol), 1.1px -1.1px var(--ol), -1.1px -1.1px var(--ol),
+    0 2.5px 0 var(--ol);
+}
+
 /* HUD: two corner boxes of --hud-left-w / --hud-right-w by --hud-h (set from src/ui/frame.ts, whose
-   hudBoxes keep the board's cards clear of them). Nothing in the HUD may draw outside those boxes. */
+   hudBoxes keep the board's cards clear of them). Nothing in the HUD may draw outside those boxes:
+   the glossy dark edges are inset shadows, so a 44 px control stays 44 px tall. */
 
 .hud {
   position: relative;
   z-index: 15;
   grid-area: 1 / 1 / 3 / 3;
   align-self: start;
-  display: grid;
-  grid-template-columns: calc(var(--hud-left-w) - 4px) minmax(0, 1fr) calc(var(--hud-right-w) - 4px);
-  grid-template-rows: 44px calc(var(--hud-h) - 52px);
-  gap: 4px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   height: var(--hud-h);
-  padding: 4px 4px 0;
   pointer-events: none; /* the board runs under the HUD; only the back button takes taps */
 }
 
+.hud-side {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  padding: 4px;
+}
+
+/* The outer padding faces the screen edges only, so each box ends at its drawn content. */
+.hud-left {
+  max-width: var(--hud-left-w);
+  padding-right: 0;
+}
+
+.hud-right {
+  justify-content: flex-end;
+  gap: 5px;
+  max-width: var(--hud-right-w);
+  padding-left: 0;
+}
+
 .hud-back {
-  grid-area: 1 / 1;
+  position: relative;
+  z-index: 1;
+  flex: none;
   width: 44px;
   height: 44px;
+  padding: 9px 11px 11px 8px;
   pointer-events: auto;
-  padding: 0 0 4px;
-  border: 2px solid rgba(244, 201, 93, 0.5);
+  border: 3px solid #fff;
   border-radius: 50%;
-  background: rgba(20, 29, 59, 0.6);
-  font-size: 30px;
+  background:
+    radial-gradient(ellipse 60% 38% at 50% 22%, rgba(255, 255, 255, 0.6), transparent 70%),
+    linear-gradient(180deg, #74c6ff, #2f7fe0 68%, #2463c4);
+  box-shadow: inset 0 -4px 0 rgba(12, 44, 120, 0.45), 0 2px 5px rgba(60, 20, 2, 0.45);
+}
+
+.hud-back svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Glossy cream pill tucked under the back button's right edge, like a badge. Sized for 5 digits
+   inside HUD_LEFT_W; wider totals clip rather than draw over the board. */
+.hud-coins {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  height: 36px;
+  margin-left: -12px;
+  padding: 0 6px 0 12px;
+  overflow: hidden;
+  border: 2.5px solid #fff;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(180deg, #fff6e2, #f6dcaa);
+  box-shadow: inset 0 -3px 0 rgba(176, 104, 40, 0.35), 0 2px 5px rgba(60, 20, 2, 0.4);
+  color: #ffd23f;
+  font-size: 15px;
+  font-weight: 900;
   line-height: 1;
+  --ol: #8a4a0f;
+}
+
+.hud-coins .coin {
+  width: 18px;
+  height: 18px;
+}
+
+.hud-level,
+.hud-streak {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 12px;
+  border: 2.5px solid #fff;
+  border-radius: 999px;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.2), inset 0 2px 0 rgba(255, 255, 255, 0.35), 0 2px 5px rgba(60, 20, 2, 0.4);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .hud-level {
-  grid-area: 2 / 1;
-  justify-self: start;
-  align-self: start;
-  max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: rgba(20, 29, 59, 0.6);
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(180deg, #b48bff, #7b4fe0 70%, #6a3fd0);
+  --ol: #3b1f86;
 }
 
 .hud-streak {
   position: relative;
-  grid-area: 2 / 3;
-  justify-self: end;
-  align-self: start;
-  min-width: 44px;
-  max-width: 100%;
-  padding: 1px 10px;
-  font-size: 14px;
-  border-radius: 999px;
-  background: rgba(247, 168, 196, 0.15);
-  color: var(--pink);
-  font-weight: 800;
-  text-align: center;
+  flex: none;
+  min-width: 48px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(180deg, #ff9fbe, #f0568a 70%, #d93f73);
+  --ol: #8c1840;
 }
 
 .hud-streak::after {
@@ -211,30 +298,15 @@ body::after {
 }
 
 .hud-streak.hot {
-  color: var(--gold);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(180deg, #ffe27a, #ffb21f 70%, #f39a10);
+  --ol: #8a4a0f;
 }
 
 .hud-streak.hot::after {
   opacity: 1;
   animation: glow 1.2s ease-in-out infinite alternate;
-}
-
-.hud-coins {
-  grid-area: 1 / 3;
-  justify-self: end;
-  align-self: center;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 64px;
-  max-width: 100%;
-  overflow: hidden;
-  padding: 4px 12px 4px 6px;
-  border-radius: 999px;
-  background: rgba(20, 29, 59, 0.7);
-  color: var(--gold);
-  font-size: 18px;
-  font-weight: 800;
 }
 
 /* Table and cards */
@@ -295,6 +367,55 @@ body::after {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* Playable glow: a warm halo behind each exposed card that can go on the discard. Only its opacity
+   pulses; it is off while a dialog is open (.modal) and static under reduced motion. */
+.card.playable::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  z-index: -1;
+  border-radius: 14% / 10%;
+  background: rgba(255, 248, 190, 0.65);
+  box-shadow: 0 0 10px 4px rgba(255, 226, 110, 0.95);
+  pointer-events: none;
+  animation: glow 1.1s ease-in-out infinite alternate;
+}
+
+.level.modal .card.playable::before {
+  content: none;
+}
+
+/* Idle nudge: one gentle wiggle (transform only); the class is removed on animationend. */
+.card.nudge,
+.stock.nudge {
+  animation: nudge 700ms ease-in-out;
+}
+
+@keyframes nudge {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  15% {
+    transform: translateY(-4px) rotate(-6deg);
+  }
+  35% {
+    transform: translateY(-4px) rotate(5deg);
+  }
+  55% {
+    transform: translateY(-2px) rotate(-4deg);
+  }
+  75% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes nudge-fade {
+  50% {
+    opacity: 0.45;
+  }
 }
 
 /* Bottom strip: stock (a stacked edge of backs) and discard at bottom centre, one strip-high card each;
@@ -397,7 +518,74 @@ body::after {
   line-height: 22px;
 }
 
-/* Booster column on the right edge, below the HUD's coin corner */
+/* First-timer hint (level 1): the corner cat with a speech bubble, in the strip's left corner. It ends
+   8 px before the stock's stacked edge (half the piles' width left of centre), so it never covers the
+   stock, the discard or any card slot, and it never takes taps. */
+.hint {
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  right: calc(50% + ((10 - 1) * 5px + 2 * (var(--strip-h) - 12px) / 1.4 + 16px) / 2 + 8px);
+  display: flex;
+  align-items: flex-end;
+  pointer-events: none;
+  animation: hint-in 450ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+.hint-cat {
+  flex: none;
+  width: 50px;
+  height: 50px;
+  filter: drop-shadow(0 2px 2px rgba(60, 20, 2, 0.45));
+}
+
+.hint-cat svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hint-bubble {
+  position: relative;
+  align-self: center;
+  min-width: 0;
+  margin: 0 0 0 10px;
+  padding: 5px 10px;
+  border: 2.5px solid #fff;
+  border-radius: 14px;
+  background: #fffdf7;
+  box-shadow: 0 2px 6px rgba(60, 20, 2, 0.4);
+  color: #1f2a55;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+/* The tail points down-left at the cat. */
+.hint-bubble::before {
+  content: "";
+  position: absolute;
+  left: -9px;
+  bottom: 8px;
+  width: 12px;
+  height: 12px;
+  border-left: 2.5px solid #fff;
+  border-bottom: 2.5px solid #fff;
+  background: #fffdf7;
+  transform: skewY(-35deg) rotate(20deg);
+}
+
+@keyframes hint-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+/* Booster column on the right edge, below the HUD's level/streak corner: round glossy buttons with an
+   icon and the name, and a price tag pill hanging under each. The whole stack is one button. */
 
 .boosters {
   grid-area: 1 / 2 / 3 / 3;
@@ -405,33 +593,119 @@ body::after {
   flex-direction: column;
   justify-content: flex-end;
   align-items: center;
-  gap: 8px;
-  padding: 0 6px 10px;
+  gap: 6px;
+  padding: 0 4px 8px;
 }
 
 .booster {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   width: 64px;
-  min-height: 52px;
-  padding: 4px 2px;
-  border: 2px solid var(--gold);
-  border-radius: 16px;
-  background: rgba(34, 48, 107, 0.85);
-  font-size: 15px;
-  font-weight: 800;
-  line-height: 1.1;
+  padding: 0;
+  border: 0;
+  background: none;
+  --b1: #74c6ff;
+  --b2: #2f7fe0;
+  --b3: #2463c4;
+  --b-ol: #173f86;
+}
+
+.booster[data-booster="wild"] {
+  --b1: #ffa3d2;
+  --b2: #e64d9a;
+  --b3: #c93682;
+  --b-ol: #7a1650;
+}
+
+.booster[data-booster="addFive"] {
+  --b1: #9be86f;
+  --b2: #45b52f;
+  --b3: #34992a;
+  --b-ol: #1d5e12;
+}
+
+.booster-ball {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  padding-bottom: 4px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse 62% 36% at 50% 20%, rgba(255, 255, 255, 0.6), transparent 70%),
+    linear-gradient(180deg, var(--b1), var(--b2) 68%, var(--b3));
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.22), 0 3px 6px rgba(60, 20, 2, 0.45);
+  color: #fff;
+}
+
+.booster-ball svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
+.booster-name {
+  margin-top: 1px;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  --ol: var(--b-ol);
 }
 
 .booster-cost {
-  color: var(--gold);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  margin-top: -9px;
+  padding: 0 8px 0 3px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffe58a, #ffc02e 70%, #f5a916);
+  box-shadow: inset 0 -2px 0 rgba(160, 90, 10, 0.35), 0 2px 3px rgba(60, 20, 2, 0.4);
+  color: #fff;
   font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  --ol: #8a4a0f;
 }
 
+.booster-cost .coin {
+  width: 13px;
+  height: 13px;
+}
+
+/* Disabled: grey and desaturated, but the name and price stay dark and readable (contrast > 5:1). */
 .booster:disabled {
-  opacity: 0.4;
+  --b1: #ebe6e0;
+  --b2: #c3bbb2;
+  --b3: #aca398;
+}
+
+.booster:disabled .booster-ball,
+.booster:disabled .booster-cost {
+  color: #3f3832;
+}
+
+.booster:disabled .booster-name,
+.booster:disabled .booster-cost {
+  text-shadow: none;
+}
+
+.booster:disabled .booster-cost {
+  background: linear-gradient(180deg, #efebe6, #cfc8c0);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.12);
+}
+
+.booster:disabled svg,
+.booster:disabled .coin {
+  filter: grayscale(1);
+  opacity: 0.7;
 }
 
 /* Effects layer */
@@ -469,54 +743,73 @@ body::after {
   height: 100%;
 }
 
-/* Dialogs */
+/* Dialogs: landscape, compact enough for 360 px of height. The backdrop scrolls as a safety net, and
+   the dialog centres with auto margins so an overflowing dialog can still scroll to its top. */
 
 .dialog-backdrop {
   position: absolute;
   inset: 0;
   z-index: 20;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  background: rgba(7, 11, 28, 0.6);
+  display: flex;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(14px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background: radial-gradient(ellipse at 50% 45%, rgba(60, 22, 4, 0.45), rgba(30, 10, 2, 0.75));
   animation: fade-in 200ms ease-out;
 }
 
 .dialog {
   position: relative;
-  width: min(100%, 340px);
-  padding: 20px 18px 18px;
-  border: 2px solid var(--gold);
-  border-radius: 22px;
-  background: linear-gradient(180deg, var(--night-2), var(--night));
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  flex: none;
+  width: min(100%, 470px);
+  margin: auto;
+  padding: 14px 20px 18px;
+  border: 4px solid #fff;
+  border-radius: 26px;
+  background: radial-gradient(ellipse 90% 70% at 50% 0%, #fffdf8, #fff2da 60%, #ffe3b8);
+  box-shadow: inset 0 -5px 0 rgba(200, 130, 60, 0.25), 0 5px 0 #c77a35, 0 14px 30px rgba(30, 10, 2, 0.5);
+  color: #4a3a2e;
   text-align: center;
   animation: dialog-in 250ms ease-out;
 }
 
 .dialog h2 {
   margin: 0 0 8px;
-  color: var(--gold);
-  font-size: 24px;
+  color: #fff;
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1.1;
+  --ol: #d2601d;
 }
 
 .dialog p {
-  margin: 0 0 16px;
-  line-height: 1.4;
+  margin: 0 0 14px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
+/* Win: the cat, title and stars on the left; coin lines, wallet and actions on the right. */
 .dialog.win {
-  margin-top: 50px;
-  padding-top: 62px;
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  width: min(100%, 560px);
+  padding: 14px 20px 16px;
+}
+
+.win-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .win-cat {
-  position: absolute;
-  top: -56px;
-  left: 50%;
-  width: 110px;
-  height: 110px;
-  margin-left: -55px;
+  width: 96px;
+  height: 96px;
+  filter: drop-shadow(0 3px 3px rgba(120, 60, 10, 0.35));
   animation: cat-pop 500ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
 }
 
@@ -526,51 +819,72 @@ body::after {
   height: 100%;
 }
 
+.win-hero h2 {
+  margin: 2px 0 4px;
+  white-space: nowrap;
+}
+
 .stars {
   display: flex;
   justify-content: center;
-  gap: 8px;
-  margin: 4px 0 12px;
-  font-size: 44px;
+  gap: 4px;
+  font-size: 40px;
   line-height: 1;
 }
 
 .star {
   display: inline-block;
-  color: rgba(255, 248, 239, 0.2);
+  color: rgba(140, 90, 40, 0.25);
 }
 
 .star.earned {
-  color: var(--gold);
-  text-shadow: 0 0 12px rgba(244, 201, 93, 0.7);
+  color: #ffc93a;
+  text-shadow: 0 2px 0 #c7761a, 0 0 10px rgba(255, 200, 60, 0.6);
   animation: star-pop 400ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
   animation-delay: calc(250ms + var(--i) * 220ms);
 }
 
 .breakdown {
-  margin: 0 0 10px;
-  padding: 0;
+  margin: 0 0 8px;
+  padding: 4px 12px;
+  border-radius: 14px;
+  background: rgba(200, 130, 60, 0.14);
   list-style: none;
+  font-size: 15px;
+  font-weight: 800;
 }
 
 .breakdown li {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  padding: 5px 6px;
-  border-bottom: 1px solid rgba(255, 248, 239, 0.12);
+  padding: 4px 0;
+  border-bottom: 1px dashed rgba(150, 90, 40, 0.3);
 }
 
-.wallet {
+.breakdown li:last-child {
+  border-bottom: 0;
+}
+
+.dialog .wallet {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 8px;
-  color: var(--gold);
-  font-size: 22px;
-  font-weight: 800;
+  margin: 0 0 10px;
+  color: #ffd23f;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.1;
+  --ol: #8a4a0f;
 }
 
+.dialog .wallet .coin {
+  width: 24px;
+  height: 24px;
+}
+
+/* Glossy pill buttons: gradient, top highlight, dark bottom edge. Blue by default. */
 .dialog-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -578,22 +892,53 @@ body::after {
 }
 
 .dialog-actions button {
-  min-height: 48px;
-  border: 2px solid var(--gold);
-  border-radius: 24px;
-  background: rgba(20, 29, 59, 0.8);
-  font-size: 16px;
-  font-weight: 800;
+  min-height: 46px;
+  padding: 0 10px 3px;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 14%, rgba(255, 255, 255, 0.55), transparent 70%),
+    linear-gradient(180deg, var(--b1), var(--b2) 68%, var(--b3));
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.2), 0 3px 0 var(--b-edge), 0 5px 8px rgba(60, 20, 2, 0.35);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.1;
+  --b1: #74c6ff;
+  --b2: #2f7fe0;
+  --b3: #2463c4;
+  --b-edge: #1d4f9e;
+  --ol: #173f86;
 }
 
 .dialog-actions .primary {
-  grid-column: 1 / -1;
-  background: var(--gold);
-  color: var(--night);
+  --b1: #9be86f;
+  --b2: #45b52f;
+  --b3: #34992a;
+  --b-edge: #22701a;
+  --ol: #1d5e12;
 }
 
+.dialog-actions .boost {
+  --b1: #ffa3d2;
+  --b2: #e64d9a;
+  --b3: #c93682;
+  --b-edge: #8f1f5c;
+  --ol: #7a1650;
+}
+
+.win .dialog-actions .primary {
+  grid-column: 1 / -1;
+}
+
+/* Disabled: grey, but the label stays dark and readable. */
 .dialog-actions button:disabled {
-  opacity: 0.4;
+  --b1: #ebe6e0;
+  --b2: #c3bbb2;
+  --b3: #aca398;
+  --b-edge: #8a8177;
+  color: #3f3832;
+  text-shadow: none;
 }
 
 @keyframes glow {
@@ -643,6 +988,17 @@ body::after {
 
   .hud-streak.hot::after {
     animation: none;
+  }
+
+  /* A static glow, and a brief fade instead of the wiggle (this beats the 0 ms rule above). */
+  .level .card.playable::before {
+    animation: none;
+    opacity: 0.85;
+  }
+
+  .level .card.nudge,
+  .level .stock.nudge {
+    animation: nudge-fade 900ms ease-in-out !important;
   }
 }
 

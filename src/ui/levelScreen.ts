@@ -1,20 +1,24 @@
 /**
  * The playable level in the landscape frame: board, bottom strip (stock, discard), booster column on
- * the right, HUD over the top corners, and dialogs.
+ * the right, HUD over the top corners, and dialogs. Helpers for new players: playable cards glow, an
+ * idle nudge wiggles one after NUDGE_MS without input, and level 1 shows a one-time hint bubble.
  * All rules live in core/game; this screen dispatches actions and animates the difference.
  */
 import type { Top } from '../core/cards';
 import { ECON, starsFor } from '../core/economy';
-import { deal, reduce, top, type Action, type GameState } from '../core/game';
+import { deal, playable, reduce, top, type Action, type GameState } from '../core/game';
 import type { LevelDef } from '../core/level';
 import { LEVELS } from '../levels/levels';
 import { mergeSessionIntoSave, type SaveV1, type SessionWin } from '../progress/save';
 import { cardBackSvg } from './art/cardArt';
+import { catHeadSvg } from './art/catArt';
+import { boosterIconSvg } from './art/hudArt';
 import { basketCatSvg, cushionSvg } from './art/tableArt';
 import { cardLabel, createBoard, topSvg } from './board';
 import { showStuckDialog, showWinDialog, type WinInfo } from './dialogs';
 import { confetti, flyCard, pop, sparkleBurst, wiggle } from './fx';
 import { applyFrame } from './frame';
+import { hintSeen, hintText, markHintSeen } from './hint';
 import { createHud } from './hud';
 
 export interface LevelDeps {
@@ -33,6 +37,8 @@ const BOOSTERS: readonly { readonly type: Booster; readonly name: string; readon
 
 /** Most backs drawn in the stock's stacked edge. */
 const STACK_MAX = 10;
+/** Idle time before a playable card (or the stock) wiggles; a UI timer, not a gameplay one. */
+const NUDGE_MS = 5000;
 
 export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps): () => void {
   let state: GameState = deal(level, deps.getSave().coins);
@@ -42,6 +48,7 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
   let inFlight = 0; // cards still flying to the discard
   let shownTop: Top | null = null;
   let mounted = true;
+  let idleTimer = 0; // idle-nudge timeout; 0 while none is armed
 
   const screen = document.createElement('div');
   screen.className = 'level';
@@ -65,12 +72,21 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
     `<button type="button" class="pile stock">${layers}<span class="pile-count"></span></button>` +
     `<div class="pile discard" role="img"></div>` +
     `</div>`;
+  // First-timer hint: level 1 only, until the first card is played (flag outside the save format).
+  let hintEl: HTMLElement | null = null;
+  if (level.id === 1 && !hintSeen()) {
+    hintEl = document.createElement('div');
+    hintEl.className = 'hint';
+    hintEl.innerHTML = `<span class="hint-cat" aria-hidden="true">${catHeadSvg()}</span><p class="hint-bubble" aria-live="polite"></p>`;
+    bar.append(hintEl);
+  }
   const boostersEl = document.createElement('div');
   boostersEl.className = 'boosters';
   boostersEl.innerHTML = BOOSTERS.map(
     (b) =>
       `<button type="button" class="booster" data-booster="${b.type}" aria-label="${b.name} · ${b.cost}">` +
-      `<span class="booster-name">${b.name}</span><span class="booster-cost">${b.cost}</span></button>`,
+      `<span class="booster-ball">${boosterIconSvg(b.type)}<span class="booster-name">${b.name}</span></span>` +
+      `<span class="booster-cost"><span class="coin" aria-hidden="true"></span>${b.cost}</span></button>`,
   ).join('');
   const fx = document.createElement('div');
   fx.className = 'fx';
@@ -118,6 +134,11 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
       const from = board.slot(action.slot).getBoundingClientRect();
       board.update(state.table);
       fly(from, topSvg(prev.table[action.slot]!), true);
+      if (hintEl) {
+        markHintSeen();
+        hintEl.remove();
+        hintEl = null;
+      }
     } else {
       board.update(state.table);
       if (action.type === 'draw') fly(stockEl.getBoundingClientRect(), topSvg(top(state)), false, cardBackSvg());
@@ -156,6 +177,8 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
     for (const l of layerEls) l.hidden = Number(l.dataset.k) >= Math.min(left, STACK_MAX);
     stockEl.setAttribute('aria-label', `Draw a card, ${left} left`);
     for (const b of boosterEls) b.disabled = reduce(state, { type: b.dataset.booster as Booster }) === state;
+    const glowing = playable(state);
+    state.layout.slots.forEach((_, i) => board.slot(i).classList.toggle('playable', glowing.includes(i)));
   }
 
   /** Runs once no card is in flight: shows the discard top and any end-of-level dialog. */
@@ -166,6 +189,7 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
       shownTop = t;
       discardEl.innerHTML = topSvg(t);
       discardEl.setAttribute('aria-label', `Discard: ${cardLabel(t)}`);
+      if (hintEl) hintEl.querySelector('.hint-bubble')!.textContent = hintText(t);
     }
     const wanted = win ? 'win' : state.status === 'stuck' ? 'stuck' : null;
     if (dialog && dialog.kind !== wanted) closeDialog(); // the state moved on by some other path: never leave it stale
@@ -204,11 +228,34 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
         ),
       };
     }
+    syncModal();
   }
 
   function closeDialog(): void {
     dialog?.close();
     dialog = null;
+    syncModal();
+  }
+
+  /** While a dialog is open the playable glow is off (CSS, via `.modal`) and no nudge is armed. */
+  function syncModal(): void {
+    screen.classList.toggle('modal', dialog !== null);
+    armNudge();
+  }
+
+  /** (Re)starts the idle-nudge countdown; any input calls this, so only real idleness reaches nudge(). */
+  function armNudge(): void {
+    clearTimeout(idleTimer);
+    idleTimer = dialog || !mounted ? 0 : window.setTimeout(nudge, NUDGE_MS);
+  }
+
+  /** Wiggles the first playable card, or the stock if none is playable, then waits for the next idle spell. */
+  function nudge(): void {
+    if (dialog || !mounted) return;
+    const first = playable(state)[0];
+    const el = first !== undefined ? board.slot(first) : state.stock.length > 0 ? stockEl : null;
+    el?.classList.add('nudge');
+    armNudge();
   }
 
   function boosterFromDialog(action: Action): void {
@@ -235,14 +282,26 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
   // Reload/close: Chromium can fire the unload visibilitychange while still reporting "visible".
   window.addEventListener('pagehide', persistCoins);
   window.addEventListener('resize', onResize);
+  // Any input restarts the idle-nudge countdown (capture: taps the game refuses count too).
+  document.addEventListener('pointerdown', armNudge, true);
+  document.addEventListener('keydown', armNudge, true);
+  const endNudge = (e: AnimationEvent): void => {
+    if (e.animationName.startsWith('nudge')) (e.target as Element).classList.remove('nudge');
+  };
+  screen.addEventListener('animationend', endNudge);
+  screen.addEventListener('animationcancel', endNudge);
 
   refresh(false);
   settle();
+  armNudge();
 
   return () => {
     if (!mounted) return;
     mounted = false;
+    clearTimeout(idleTimer);
     document.removeEventListener('visibilitychange', onVisibility);
+    document.removeEventListener('pointerdown', armNudge, true);
+    document.removeEventListener('keydown', armNudge, true);
     window.removeEventListener('pagehide', persistCoins);
     window.removeEventListener('resize', onResize);
     for (const a of screen.getAnimations({ subtree: true })) a.cancel();

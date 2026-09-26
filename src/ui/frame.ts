@@ -10,12 +10,18 @@ import type { TopBox } from './boardFit';
 export const STRIP_H = 88;
 /** Right-edge column that holds the booster buttons, CSS px. */
 export const BOOSTER_W = 76;
-/** Height of both HUD corner boxes, from the top edge, CSS px. */
-export const HUD_H = 76;
-/** Top-left HUD box (back button over the "Level N" pill), from the left edge, CSS px. */
-export const HUD_LEFT_W = 76;
-/** Top-right HUD box (coin pill over the streak pill), from the right edge over the booster column, CSS px. */
-export const HUD_RIGHT_W = 104;
+/** Height of both HUD corner boxes, from the top edge: one row of 44 px controls and 36 px pills, CSS px. */
+export const HUD_H = 48;
+/**
+ * Top-left HUD box, from the left edge: the back button with the coin pill tucked beside it. A 5-digit
+ * total ends at 122.9 px (measured, 15 px digits); more digits clip inside the pill. CSS px.
+ */
+export const HUD_LEFT_W = 124;
+/**
+ * Top-right HUD box, from the right edge over the booster column: "Level 25" beside a "×25" streak pill
+ * starts 160.1 px from the edge (measured). CSS px.
+ */
+export const HUD_RIGHT_W = 162;
 
 /** The board area's size for a viewport (safe-area insets excluded: the CSS pads them off first). */
 export function boardArea(viewportW: number, viewportH: number): { w: number; h: number } {

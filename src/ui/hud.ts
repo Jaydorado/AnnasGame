@@ -1,4 +1,8 @@
-/** HUD over the top corners: back to map and level title (left), coin counter and streak meter (right). */
+/**
+ * HUD over the top corners: back to map and the coin pill (left), level and streak pills (right).
+ * Each side stays inside its corner box from frame.ts (HUD_LEFT_W / HUD_RIGHT_W by HUD_H).
+ */
+import { backIconSvg } from './art/hudArt';
 import { pop, reducedMotion } from './fx';
 
 const COUNT_MS = 400;
@@ -16,10 +20,14 @@ export function createHud(levelId: number, coins: number, onBack: () => void): H
   const el = document.createElement('header');
   el.className = 'hud';
   el.innerHTML =
-    `<button type="button" class="hud-back" aria-label="Back to map">‹</button>` +
+    `<div class="hud-side hud-left">` +
+    `<button type="button" class="hud-back" aria-label="Back to map">${backIconSvg()}</button>` +
+    `<span class="hud-coins"><span class="coin" aria-hidden="true"></span><span class="hud-coin-value">${coins}</span></span>` +
+    `</div>` +
+    `<div class="hud-side hud-right">` +
     `<span class="hud-level">Level ${levelId}</span>` +
     `<span class="hud-streak">×0</span>` +
-    `<span class="hud-coins"><span class="coin" aria-hidden="true"></span><span class="hud-coin-value">${coins}</span></span>`;
+    `</div>`;
   el.querySelector('.hud-back')!.addEventListener('click', onBack);
   const streakEl = el.querySelector<HTMLElement>('.hud-streak')!;
   const coinsEl = el.querySelector<HTMLElement>('.hud-coins')!;

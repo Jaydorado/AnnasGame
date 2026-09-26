@@ -65,18 +65,23 @@ export function showWinDialog(
     `<li><span>Cards left ${info.cardsLeft} × ${ECON.perStockLeft}</span><span>= +${stockBonus}</span></li>`,
     info.bonus > 0 ? `<li><span>3-star bonus</span><span>+${info.bonus}</span></li>` : '',
   ].join('');
+  // Landscape: the cat, title and stars on the left; the coin lines and the actions on the right.
   return openDialog(
     host,
     'win',
-    `<div class="win-cat">${catHeadSvg()}</div>` +
+    `<div class="win-hero">` +
+      `<div class="win-cat">${catHeadSvg()}</div>` +
       `<h2 id="dialog-title">Level clear!</h2>` +
       `<div class="stars" role="img" aria-label="${info.stars} of 3 stars">${stars}</div>` +
+      `</div>` +
+      `<div class="win-body">` +
       `<ul class="breakdown">${lines}</ul>` +
       `<p class="wallet"><span class="coin" aria-hidden="true"></span>${info.wallet}</p>` +
       `<div class="dialog-actions">` +
       `<button type="button" class="primary" data-act="next">${info.isLast ? 'The end ♥' : 'Next'}</button>` +
       `<button type="button" data-act="replay">Replay</button>` +
       `<button type="button" data-act="map">Map</button>` +
+      `</div>` +
       `</div>`,
     on,
   );
@@ -93,9 +98,9 @@ export function showStuckDialog(
     `<h2 id="dialog-title">Out of moves</h2>` +
       `<p>Add a few cards or place a Wild to keep going, or start the level again.</p>` +
       `<div class="dialog-actions">` +
-      `<button type="button" data-act="addFive"${info.canAddFive ? '' : ' disabled'}>+${ECON.addFiveCount} cards · ${ECON.addFiveCost}</button>` +
-      `<button type="button" data-act="wild"${info.canWild ? '' : ' disabled'}>Wild · ${ECON.wildCost}</button>` +
-      `<button type="button" data-act="retry">Retry</button>` +
+      `<button type="button" class="boost" data-act="addFive"${info.canAddFive ? '' : ' disabled'}>+${ECON.addFiveCount} cards · ${ECON.addFiveCost}</button>` +
+      `<button type="button" class="boost" data-act="wild"${info.canWild ? '' : ' disabled'}>Wild · ${ECON.wildCost}</button>` +
+      `<button type="button" class="primary" data-act="retry">Retry</button>` +
       `<button type="button" data-act="map">Map</button>` +
       `</div>`,
     on,

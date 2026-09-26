@@ -90,9 +90,11 @@ describe('fitBoard around the HUD corners', () => {
     }
   });
 
+  // threePeaks is not listed: its left peak sits under the top-left corner, where the coin pill now
+  // sits beside the back button, so it trades a few px of card width for clearing it (still >= the floors).
   it.each(VIEWPORTS)('at %ix%i layouts with empty corners keep their full size', (vw, vh) => {
     const { w, h } = boardArea(vw, vh);
-    for (const layout of [LAYOUTS.threePeaks, LAYOUTS.pyramid, LAYOUTS.diamond]) {
+    for (const layout of [LAYOUTS.pyramid, LAYOUTS.diamond]) {
       expect(fitBoard(w, h, layout, hudBoxes(w)), layout.id).toEqual(fitBoard(w, h, layout));
     }
   });

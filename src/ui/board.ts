@@ -9,7 +9,7 @@ import { fitBoard } from './boardFit';
 import { hudBoxes } from './frame';
 
 const SUIT_NAMES = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
-const RANK_NAMES = ['', 'Ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Jack', 'Queen', 'King'] as const;
+export const RANK_NAMES = ['', 'Ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Jack', 'Queen', 'King'] as const;
 
 /** Accessible name, e.g. "5 of hearts". */
 export function cardLabel(t: Top): string {
