@@ -27,8 +27,13 @@ describe('solveDeal', () => {
 });
 
 describe('solveLevel', () => {
-  it('solves a real deal deterministically', () => {
+  // Expected values verified independently by exhaustive search over the game reducer (deal/playable/reduce).
+  it('finds the best outcome of a winnable real deal', () => {
     const lvl = { id: 1, layoutId: 'pyramid', seed: 3, stockSize: 22, star2: 1, star3: 2 } as const;
-    expect(solveLevel(lvl)).toEqual(solveLevel(lvl));
+    expect(solveLevel(lvl)).toEqual({ winnable: true, bestStockLeft: 4 });
+  });
+  it('reports an unwinnable real deal', () => {
+    const lvl = { id: 1, layoutId: 'pyramid', seed: 1, stockSize: 22, star2: 1, star3: 2 } as const;
+    expect(solveLevel(lvl)).toEqual({ winnable: false, bestStockLeft: -1 });
   });
 });
