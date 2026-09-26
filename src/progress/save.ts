@@ -49,8 +49,28 @@ export function writeSave(save: SaveV1, storage: Pick<Storage, 'setItem'> = loca
   storage.setItem(SAVE_KEY, JSON.stringify(save));
 }
 
-export function withCoins(save: SaveV1, coins: number): SaveV1 {
-  return { ...save, coins };
+/** A win this session recorded: the level, its stars, and how many levels the game has. */
+export interface SessionWin {
+  readonly levelId: number;
+  readonly stars: Stars;
+  readonly levelCount: number;
+}
+
+/**
+ * Applies one session's progress to the save just read from storage, so a stale page never writes
+ * back an old whole-save copy. Coins get only the session delta (`sessionCoins - baselineCoins`,
+ * clamped at 0 if another page spent the same coins); the caller then moves its baseline to
+ * `sessionCoins`. A win keeps the best stars and highest unlock and pays the 3-star bonus only
+ * if the stored save has not paid it for that level yet.
+ */
+export function mergeSessionIntoSave(
+  stored: SaveV1,
+  baselineCoins: number,
+  sessionCoins: number,
+  win?: SessionWin,
+): { save: SaveV1; bonus: number } {
+  const save = { ...stored, coins: Math.max(0, stored.coins + sessionCoins - baselineCoins) };
+  return win ? recordWin(save, win.levelId, win.stars, win.levelCount) : { save, bonus: 0 };
 }
 
 export function recordWin(save: SaveV1, levelId: number, stars: Stars, levelCount: number): { save: SaveV1; bonus: number } {

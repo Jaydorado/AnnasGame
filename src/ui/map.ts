@@ -8,9 +8,10 @@ import type { SaveV1 } from '../progress/save';
 import { catHeadSvg, pawSvg, yarnBallSvg } from './art/catArt';
 
 export interface MapDeps {
-  getSave(): SaveV1;
+  getSave(): SaveV1; // reads the stored save fresh
   play(levelId: number): void;
   final(): void; // opens the thank-you screen (♥ button, shown once level 25 is won)
+  reload(): void; // remounts the map from the stored save
 }
 
 const SPACING = 110; // px between consecutive nodes
@@ -27,6 +28,7 @@ const nodeY = (i: number): number => TOP_PAD + (LEVELS.length - 1 - i) * SPACING
 
 export function mountMap(root: HTMLElement, deps: MapDeps): () => void {
   const save = deps.getSave();
+  const shown = JSON.stringify(save);
   const current = Math.min(save.unlocked, LEVELS.length);
 
   const screen = document.createElement('div');
@@ -106,12 +108,18 @@ export function mountMap(root: HTMLElement, deps: MapDeps): () => void {
   layoutPaws();
   scroller.scrollTop = nodeY(current - 1) - scroller.clientHeight / 2;
   window.addEventListener('resize', layoutPaws);
+  // Another tab may have saved progress while this one was in the background.
+  const onVisibility = (): void => {
+    if (document.visibilityState === 'visible' && JSON.stringify(deps.getSave()) !== shown) deps.reload();
+  };
+  document.addEventListener('visibilitychange', onVisibility);
 
   let mounted = true;
   return () => {
     if (!mounted) return;
     mounted = false;
     window.removeEventListener('resize', layoutPaws);
+    document.removeEventListener('visibilitychange', onVisibility);
     screen.remove();
   };
 }

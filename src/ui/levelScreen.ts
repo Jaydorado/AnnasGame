@@ -7,7 +7,7 @@ import { ECON, starsFor } from '../core/economy';
 import { deal, reduce, top, type Action, type GameState } from '../core/game';
 import type { LevelDef } from '../core/level';
 import { LEVELS } from '../levels/levels';
-import { recordWin, withCoins, type SaveV1 } from '../progress/save';
+import { mergeSessionIntoSave, type SaveV1, type SessionWin } from '../progress/save';
 import { cardBackSvg } from './art/cardArt';
 import { cardLabel, createBoard, topSvg } from './board';
 import { showStuckDialog, showWinDialog, type WinInfo } from './dialogs';
@@ -15,7 +15,7 @@ import { confetti, flyCard, pop, sparkleBurst, wiggle } from './fx';
 import { createHud } from './hud';
 
 export interface LevelDeps {
-  getSave(): SaveV1;
+  getSave(): SaveV1; // reads the stored save fresh on every call
   setSave(save: SaveV1): void; // caller persists to localStorage
   exit(to: 'map' | 'next' | 'final'): void;
 }
@@ -30,6 +30,7 @@ const BOOSTERS: readonly { readonly type: Booster; readonly label: string }[] = 
 
 export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps): () => void {
   let state: GameState = deal(level, deps.getSave().coins);
+  let baseline = state.coins; // session coins already merged into the stored save
   let win: WinInfo | null = null; // set once the win is recorded in the save
   let dialog: { readonly kind: 'win' | 'stuck'; readonly close: () => void } | null = null;
   let inFlight = 0; // cards still flying to the discard
@@ -69,9 +70,21 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
   stockEl.addEventListener('click', () => act({ type: 'draw' }, stockEl));
   for (const b of boosterEls) b.addEventListener('click', () => act({ type: b.dataset.booster as Booster }, b));
 
-  /** Wallet total into the save. A won session was already saved by the win (with any 3-star bonus). */
+  /**
+   * Merges this session's coin delta (and `won`, if given) into the stored save, then moves the
+   * baseline to the session wallet so repeated persists (hidden, pagehide, Back) add nothing twice.
+   * A won state's coins never change, so persists after a win add 0 and keep the 3-star bonus.
+   */
+  function persist(won?: SessionWin): { save: SaveV1; bonus: number } {
+    const merged = mergeSessionIntoSave(deps.getSave(), baseline, state.coins, won);
+    deps.setSave(merged.save);
+    baseline = state.coins;
+    return merged;
+  }
+
+  /** Coin-only persist; zero-argument so it can be an event listener. */
   function persistCoins(): void {
-    if (!win) deps.setSave(withCoins(deps.getSave(), state.coins));
+    persist();
   }
 
   function act(action: Action, tapped: HTMLElement): void {
@@ -111,10 +124,8 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
   }
 
   function recordVictory(): void {
-    deps.setSave(withCoins(deps.getSave(), state.coins));
     const stars = starsFor(level, state.stock.length);
-    const { save, bonus } = recordWin(deps.getSave(), level.id, stars, LEVELS.length);
-    deps.setSave(save);
+    const { save, bonus } = persist({ levelId: level.id, stars, levelCount: LEVELS.length });
     win = { stars, cardsLeft: state.stock.length, bonus, wallet: save.coins, isLast: level.id === LEVELS.length };
   }
 
@@ -190,6 +201,7 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
     closeDialog();
     win = null;
     state = deal(level, deps.getSave().coins);
+    baseline = state.coins;
     board.destroy();
     board = createBoard(area, state.layout, state.table, onTap);
     refresh(false);

@@ -6,12 +6,9 @@ import { mountLevel } from './ui/levelScreen';
 import { mountMap } from './ui/map';
 
 const root = document.querySelector<HTMLElement>('#app')!;
-let save = loadSave();
-const getSave = (): SaveV1 => save;
-const setSave = (next: SaveV1): void => {
-  save = next;
-  writeSave(next);
-};
+// No in-memory save: every read goes to storage, so another tab's newer progress is never overwritten.
+const getSave = (): SaveV1 => loadSave();
+const setSave = (next: SaveV1): void => writeSave(next);
 
 let unmount: () => void = () => {};
 
@@ -22,7 +19,7 @@ function show(mount: () => () => void): void {
 }
 
 function showMap(): void {
-  show(() => mountMap(root, { getSave, play: showLevel, final: showFinal }));
+  show(() => mountMap(root, { getSave, play: showLevel, final: showFinal, reload: showMap }));
 }
 
 function showLevel(id: number): void {
