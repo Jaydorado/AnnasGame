@@ -1,11 +1,12 @@
 /**
- * Level map: a winding paw-print path of yarn-ball nodes, level 1 at the bottom.
- * The current level pulses with the cat sitting on it; locked levels are dimmed and inert.
+ * Level map: a yarn-thread trail of yarn-ball nodes over night-time rooftops, scrolling left to
+ * right from level 1. The current level pulses with the cat sitting on it; locked levels are dimmed
+ * and inert. The coin pill (top-left) and the title (top-right) float over the backdrop.
  */
 import { APP_NAME } from '../config';
 import { LEVELS } from '../levels/levels';
 import type { SaveV1 } from '../progress/save';
-import { catHeadSvg, pawSvg, yarnBallSvg } from './art/catArt';
+import { catHeadSvg, HEART_PATH, nightSkySvg, rooftopsSvg, yarnBallSvg } from './art/catArt';
 
 export interface MapDeps {
   getSave(): SaveV1; // reads the stored save fresh
@@ -14,100 +15,127 @@ export interface MapDeps {
   reload(): void; // remounts the map from the stored save
 }
 
-const SPACING = 110; // px between consecutive nodes
-const TOP_PAD = 130; // room above the last node for the cat and the ♥ button
-const BOTTOM_PAD = 70; // room below level 1 for its stars
-const PAWS_PER_GAP = 3;
-const PAW_CLEAR_BELOW = 28; // px kept free above a node's center (its yarn ball)
-const PAW_CLEAR_ABOVE = 42; // px kept free below a node's center (its yarn ball and stars)
+const SPACING = 104; // px between consecutive nodes
+const START_X = 84; // px from the track's left edge to level 1's centre
+const HEART_GAP = 100; // px from the last node's centre to the ♥ button's centre
+const END_PAD = 84; // px after the ♥ button's centre
+const TRACK_W = START_X + (LEVELS.length - 1) * SPACING + HEART_GAP + END_PAD;
+const WHEEL_LINE_PX = 40; // one wheel "line" (deltaMode 1) in px
 
-/** Horizontal center of node `i` (0-based) as a percentage of the path width. */
-const nodeX = (i: number): number => 50 + Math.sin(i * 0.9) * 30;
-/** Vertical center of node `i` (0-based) in px from the top of the path. */
-const nodeY = (i: number): number => TOP_PAD + (LEVELS.length - 1 - i) * SPACING;
+/** Horizontal centre of node `i` (0-based), in px from the track's left edge. */
+const nodeX = (i: number): number => START_X + i * SPACING;
+/**
+ * Vertical centre of node `i` as a percentage of the track height: a wave between 40% and 74%, so
+ * the cat above the highest node clears the HUD and the stars under the lowest stay on screen.
+ */
+const nodeY = (i: number): number => 57 + 17 * Math.cos(i * 0.9);
+const HEART_X = nodeX(LEVELS.length - 1) + HEART_GAP;
+const HEART_Y = 50;
+
+/**
+ * Smooth trail through nodes `from`..`to` (inclusive) in track units (x px, y %). Each segment is a
+ * cubic with horizontal handles, so the thread eases through every node.
+ */
+function trailPath(from: number, to: number): string {
+  let d = `M${nodeX(from)} ${nodeY(from).toFixed(2)}`;
+  for (let i = from + 1; i <= to; i++) {
+    const mid = (nodeX(i - 1) + nodeX(i)) / 2;
+    d += ` C${mid} ${nodeY(i - 1).toFixed(2)} ${mid} ${nodeY(i).toFixed(2)} ${nodeX(i)} ${nodeY(i).toFixed(2)}`;
+  }
+  return d;
+}
 
 export function mountMap(root: HTMLElement, deps: MapDeps): () => void {
   const save = deps.getSave();
   const shown = JSON.stringify(save);
   const current = Math.min(save.unlocked, LEVELS.length);
+  const last = LEVELS.length - 1;
+
+  // The trail's y is in % of the track height (viewBox height 100, stretched without aspect), and
+  // its strokes stay round and even through vector-effect.
+  const stroke = 'vector-effect="non-scaling-stroke" fill="none" stroke-linecap="round"';
+  const done = trailPath(0, current - 1);
+  const ahead = trailPath(current - 1, last);
+  const trail =
+    `<svg class="map-trail" viewBox="0 0 ${TRACK_W} 100" preserveAspectRatio="none" aria-hidden="true">` +
+    `<path d="${trailPath(0, last)}" ${stroke} stroke="rgba(8, 10, 40, 0.45)" stroke-width="10"/>` +
+    `<path d="${ahead}" ${stroke} stroke="#8f86c9" stroke-width="4" stroke-dasharray="2 9" opacity="0.8"/>` +
+    (current > 1
+      ? `<path d="${done}" ${stroke} stroke="#e0709a" stroke-width="6"/>` +
+        `<path d="${done}" ${stroke} stroke="#ffc9de" stroke-width="2" stroke-dasharray="3 8"/>`
+      : '') +
+    `</svg>`;
 
   const screen = document.createElement('div');
   screen.className = 'map';
   screen.innerHTML =
-    `<header class="map-header">` +
+    `<div class="map-sky" aria-hidden="true">${nightSkySvg()}</div>` +
+    `<div class="map-scroll"><div class="map-path">` +
+    `<div class="map-town" aria-hidden="true">${rooftopsSvg(TRACK_W + 200)}</div>` +
+    `<div class="map-track">${trail}</div>` +
+    `</div></div>` +
+    `<header class="map-hud">` +
+    `<span class="hud-coins map-coins" aria-label="${save.coins} coins"><span class="coin" aria-hidden="true"></span><span class="hud-coin-value" aria-hidden="true">${save.coins}</span></span>` +
     `<h1 class="map-title">${APP_NAME}</h1>` +
-    `<span class="map-coins" aria-label="${save.coins} coins"><span class="coin" aria-hidden="true"></span>${save.coins}</span>` +
-    `</header>` +
-    `<div class="map-scroll"><div class="map-path"></div></div>`;
+    `</header>`;
   const scroller = screen.querySelector<HTMLElement>('.map-scroll')!;
-  const path = screen.querySelector<HTMLElement>('.map-path')!;
-  path.style.height = `${TOP_PAD + (LEVELS.length - 1) * SPACING + BOTTOM_PAD}px`;
-
-  const paws: { el: HTMLElement; gap: number; k: number }[] = [];
-  for (let gap = 0; gap < LEVELS.length - 1; gap++) {
-    for (let k = 0; k < PAWS_PER_GAP; k++) {
-      const el = document.createElement('div');
-      el.className = 'map-paw';
-      el.innerHTML = pawSvg();
-      path.append(el);
-      paws.push({ el, gap, k });
-    }
-  }
+  const track = screen.querySelector<HTMLElement>('.map-track')!;
+  screen.style.setProperty('--track-w', `${TRACK_W}px`);
 
   LEVELS.forEach((level, i) => {
     const id = level.id;
-    const best = save.stars[id] ?? 0;
+    const best = save.stars[id];
     const locked = id > save.unlocked;
     const node = document.createElement('button');
     node.type = 'button';
     node.className = 'map-node' + (id === current ? ' current' : '');
     node.disabled = locked;
-    node.style.left = `${nodeX(i)}%`;
-    node.style.top = `${nodeY(i)}px`;
-    node.setAttribute('aria-label', `Level ${id}, ` + (locked ? 'locked' : `${best} of 3 stars`));
-    const stars = [1, 2, 3].map((n) => `<span class="map-star${n <= best ? ' earned' : ''}">★</span>`).join('');
+    node.style.left = `${nodeX(i)}px`;
+    node.style.top = `${nodeY(i)}%`;
+    node.setAttribute('aria-label', `Level ${id}, ` + (locked ? 'locked' : `${best ?? 0} of 3 stars`));
+    const stars =
+      best === undefined
+        ? ''
+        : `<span class="map-stars" aria-hidden="true">` +
+          [1, 2, 3].map((n) => `<span class="map-star${n <= best ? ' earned' : ''}">★</span>`).join('') +
+          `</span>`;
     node.innerHTML =
       `<span class="map-ball" aria-hidden="true">${yarnBallSvg()}</span>` +
       `<span class="map-num" aria-hidden="true">${id}</span>` +
-      `<span class="map-stars" aria-hidden="true">${stars}</span>` +
+      stars +
       (id === current ? `<span class="map-cat" aria-hidden="true">${catHeadSvg()}</span>` : '');
     if (!locked) node.addEventListener('click', () => deps.play(id));
-    path.append(node);
+    track.append(node);
   });
 
-  if (save.stars[LEVELS.length] !== undefined) {
+  const won = save.stars[LEVELS.length] !== undefined;
+  if (won) {
     const heart = document.createElement('button');
     heart.type = 'button';
     heart.className = 'map-heart';
-    heart.textContent = '♥';
+    heart.style.left = `${HEART_X}px`;
+    heart.style.top = `${HEART_Y}%`;
+    heart.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="${HEART_PATH}"/></svg>`;
     heart.setAttribute('aria-label', 'Open the thank-you note');
     heart.addEventListener('click', () => deps.final());
-    path.append(heart);
+    track.append(heart);
   }
 
-  /**
-   * Spreads each gap's paw prints between the two yarn balls, pointing up the path. Positions
-   * depend on the path's pixel width, so this reruns on resize.
-   */
-  function layoutPaws(): void {
-    const w = path.clientWidth;
-    for (const { el, gap, k } of paws) {
-      const dx = ((nodeX(gap + 1) - nodeX(gap)) / 100) * w;
-      const dy = nodeY(gap + 1) - nodeY(gap);
-      const len = Math.hypot(dx, dy);
-      const from = PAW_CLEAR_BELOW / len;
-      const to = 1 - PAW_CLEAR_ABOVE / len;
-      const t = from + ((to - from) * (k + 0.5)) / PAWS_PER_GAP;
-      el.style.left = `${nodeX(gap) + (nodeX(gap + 1) - nodeX(gap)) * t}%`;
-      el.style.top = `${nodeY(gap) + dy * t}px`;
-      el.style.transform = `rotate(${(Math.atan2(dx, -dy) * 180) / Math.PI}deg)`;
-    }
-  }
+  // A mouse wheel scrolls the trail sideways; touch swipes and trackpads use native overflow-x.
+  const onWheel = (e: WheelEvent): void => {
+    if (e.ctrlKey || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    e.preventDefault();
+    const unit = e.deltaMode === 1 ? WHEEL_LINE_PX : e.deltaMode === 2 ? window.innerWidth : 1;
+    scroller.scrollBy({ left: e.deltaY * unit });
+  };
+  scroller.addEventListener('wheel', onWheel, { passive: false });
 
   root.append(screen);
-  layoutPaws();
-  scroller.scrollTop = nodeY(current - 1) - scroller.clientHeight / 2;
-  window.addEventListener('resize', layoutPaws);
+  // Centre the current level (or the ♥ once the last level is won) in one read on mount; this
+  // also runs after a visibilitychange remount, which builds a fresh map.
+  const focusX = won ? HEART_X : nodeX(current - 1);
+  scroller.scrollLeft = track.offsetLeft + focusX - scroller.clientWidth / 2;
+
   // Another tab may have saved progress while this one was in the background.
   const onVisibility = (): void => {
     if (document.visibilityState === 'visible' && JSON.stringify(deps.getSave()) !== shown) deps.reload();
@@ -118,7 +146,7 @@ export function mountMap(root: HTMLElement, deps: MapDeps): () => void {
   return () => {
     if (!mounted) return;
     mounted = false;
-    window.removeEventListener('resize', layoutPaws);
+    scroller.removeEventListener('wheel', onWheel);
     document.removeEventListener('visibilitychange', onVisibility);
     screen.remove();
   };

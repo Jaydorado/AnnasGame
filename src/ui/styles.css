@@ -140,8 +140,9 @@ body::after {
   box-shadow: inset 0 0 0 2px #b8862b;
 }
 
-/* Toy-like glossy coin for the level screen: gold disc with a bright spot and a darker rim. */
-.level .coin {
+/* Toy-like glossy coin for the level screen and the map: gold disc with a bright spot and a darker rim. */
+.level .coin,
+.map .coin {
   background: radial-gradient(circle at 36% 30%, #fff8d6 0 14%, #ffd84a 40%, #f2a81c 78%, #c7761a);
   box-shadow: inset 0 0 0 1.5px #a8631a, inset 0 -2px 0 1px rgba(150, 80, 10, 0.35), 0 1px 1px rgba(60, 20, 2, 0.35);
 }
@@ -156,7 +157,12 @@ body::after {
 .dialog .wallet,
 .dialog-actions button,
 .coin-pop,
-.streak-pop {
+.streak-pop,
+.map-title,
+.map-num,
+.final-title,
+.final-credit,
+.final-back {
   text-shadow:
     1.5px 0 var(--ol), -1.5px 0 var(--ol), 0 1.5px var(--ol), 0 -1.5px var(--ol),
     1.1px 1.1px var(--ol), -1.1px 1.1px var(--ol), 1.1px -1.1px var(--ol), -1.1px -1.1px var(--ol),
@@ -252,7 +258,8 @@ body::after {
 }
 
 .hud-level,
-.hud-streak {
+.hud-streak,
+.map-title {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -268,7 +275,8 @@ body::after {
   white-space: nowrap;
 }
 
-.hud-level {
+.hud-level,
+.map-title {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1089,11 +1097,14 @@ body::after {
 
 /* ---------- Map and final screens ---------- */
 
+/* Night sky over rooftops: the body's gradient and twinkling stars show through, with a violet-pink
+   dusk glow at the horizon and the moon and sparkles from nightSkySvg on top. */
 .map,
 .final {
   position: fixed;
   inset: 0;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  overflow: hidden;
+  font-family: var(--font-round);
 }
 
 :where(.map button, .final button) {
@@ -1108,69 +1119,105 @@ body::after {
   outline-offset: 2px;
 }
 
-.map {
-  display: grid;
-  grid-template-rows: 56px minmax(0, 1fr);
-}
-
-.map-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 16px;
-  background: linear-gradient(180deg, rgba(7, 11, 28, 0.55), transparent);
-}
-
-.map-title {
-  flex: 1;
-  margin: 0;
-  color: var(--gold);
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-}
-
-.map-coins {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--gold);
-  font-size: 18px;
-  font-weight: 800;
-}
-
-.map-scroll {
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.map-path {
-  position: relative;
-  max-width: 480px;
-  margin: 0 auto;
-}
-
-.map-paw {
+.map-sky {
   position: absolute;
-  width: 15px;
-  height: 15px;
-  margin: -7.5px 0 0 -7.5px;
-  opacity: 0.55;
+  inset: 0;
   pointer-events: none;
+  background: linear-gradient(180deg, transparent 38%, rgba(110, 70, 200, 0.3) 76%, rgba(240, 120, 160, 0.38) 100%);
 }
 
-.map-paw svg,
+.map-sky svg,
+.map-town svg,
 .map-ball svg,
 .map-cat svg,
+.map-heart svg,
 .final-cat svg {
   display: block;
   width: 100%;
   height: 100%;
 }
 
+/* The trail scrolls sideways under the fixed sky. The track sits inside the safe-area insets, while
+   the rooftops run edge to edge. */
+.map-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.map-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.map-path {
+  position: relative;
+  width: calc(var(--track-w) + env(safe-area-inset-left) + env(safe-area-inset-right));
+  height: 100%;
+}
+
+.map-town {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 150px; /* TOWN_H in catArt.ts */
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.map-track {
+  position: absolute;
+  top: env(safe-area-inset-top);
+  bottom: env(safe-area-inset-bottom);
+  left: env(safe-area-inset-left);
+  width: var(--track-w);
+}
+
+.map-trail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* Coin pill top-left (the level screen's pill, without the back button) and the title top-right. */
+.map-hud {
+  position: absolute;
+  top: env(safe-area-inset-top);
+  right: env(safe-area-inset-right);
+  left: env(safe-area-inset-left);
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 4px 6px;
+  pointer-events: none;
+}
+
+.hud-coins.map-coins {
+  gap: 4px;
+  margin-left: 0;
+  padding: 0 11px 0 6px;
+  font-size: 16px;
+}
+
+.map-title {
+  margin: 0;
+  padding: 0 16px;
+  font-size: 18px;
+}
+
+/* Glossy yarn-ball markers: a soft shadow on the roofs, a darker bottom edge, an outlined number. */
 .map-node {
   position: absolute;
+  z-index: 1;
   width: 64px;
   height: 64px;
   margin: -32px 0 0 -32px;
@@ -1180,125 +1227,197 @@ body::after {
   background: none;
 }
 
+.map-node::before {
+  content: "";
+  position: absolute;
+  right: 12px;
+  bottom: -2px;
+  left: 8px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(8, 10, 40, 0.5);
+  filter: blur(2px);
+}
+
 .map-node:disabled {
   cursor: default;
-  opacity: 0.4;
-  filter: grayscale(0.8);
 }
 
 .map-ball {
   position: absolute;
   inset: 0;
+  filter: drop-shadow(0 2.5px 0 #a8356a);
+}
+
+.map-node:disabled .map-ball {
+  opacity: 0.8;
+  filter: grayscale(1) brightness(0.7) drop-shadow(0 2.5px 0 #2a2d55);
 }
 
 .map-node.current .map-ball {
-  filter: drop-shadow(0 0 10px var(--gold));
+  filter: drop-shadow(0 2.5px 0 #a8356a) drop-shadow(0 0 7px #ffd84a) drop-shadow(0 0 3px #fff3c4);
   animation: node-pulse 1.1s ease-in-out infinite alternate;
 }
 
 .map-num {
   position: absolute;
-  inset: 0 0 4px;
+  inset: 0 4px 3px 0;
   display: grid;
   place-items: center;
-  color: var(--night);
+  color: #fff;
   font-size: 22px;
   font-weight: 900;
-  text-shadow: 0 0 4px var(--cream);
+  line-height: 1;
+  --ol: #a8255f;
+}
+
+.map-node:disabled .map-num {
+  color: #d9d7ea;
+  --ol: #34375e;
 }
 
 .map-stars {
   position: absolute;
+  top: calc(100% - 7px);
   left: 50%;
-  bottom: -4px;
   display: flex;
-  gap: 1px;
-  padding: 0 5px;
+  padding: 1px 5px 0;
+  border: 2px solid #fff;
   border-radius: 999px;
-  background: rgba(20, 29, 59, 0.75);
-  font-size: 14px;
-  line-height: 18px;
+  background: linear-gradient(180deg, #5a5fb4, #2e3178 70%, #262868);
+  box-shadow: 0 2px 3px rgba(8, 10, 40, 0.5);
+  font-size: 13px;
+  line-height: 16px;
   transform: translateX(-50%);
 }
 
 .map-star {
-  color: transparent;
-  -webkit-text-stroke: 1px var(--gold);
+  color: rgba(255, 255, 255, 0.28);
 }
 
 .map-star.earned {
-  color: var(--gold);
+  color: #ffc93a;
+  text-shadow: 0 1px 0 #a8631a;
 }
 
 .map-cat {
   position: absolute;
-  top: -38px;
+  top: -40px;
   left: 50%;
   width: 50px;
   height: 50px;
-  margin-left: -25px;
-  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.45));
+  margin-left: -27px;
+  filter: drop-shadow(0 3px 3px rgba(8, 10, 40, 0.55));
   pointer-events: none;
+  animation: cat-bob 1.1s ease-in-out infinite alternate;
 }
 
+/* The ♥ after the last level: a glossy pink ball button with a white heart. */
 .map-heart {
   position: absolute;
-  top: 4px;
-  left: 50%;
-  width: 52px;
-  height: 52px;
-  margin-left: -26px;
-  padding: 0;
-  border: 2px solid var(--pink);
+  z-index: 1;
+  width: 60px;
+  height: 60px;
+  margin: -30px 0 0 -30px;
+  padding: 14px 13px 11px;
+  border: 3px solid #fff;
   border-radius: 50%;
-  background: rgba(20, 29, 59, 0.8);
-  color: var(--pink);
-  font-size: 28px;
-  line-height: 1;
-  box-shadow: 0 0 14px rgba(247, 168, 196, 0.5);
+  background:
+    radial-gradient(ellipse 60% 38% at 50% 22%, rgba(255, 255, 255, 0.6), transparent 70%),
+    linear-gradient(180deg, #ffa3d2, #e64d9a 68%, #c93682);
+  box-shadow: inset 0 -4px 0 rgba(122, 22, 80, 0.45), 0 3px 0 #8f1f5c, 0 0 18px 4px rgba(255, 160, 200, 0.5);
+  animation: heart-beat 1.2s ease-in-out infinite;
 }
 
+.map-heart svg {
+  fill: #fff;
+}
+
+/* Final screen: the cheering cat beside the thank-you note, over the same sky and rooftops. */
 .final {
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: 16px;
-  padding-inline: 24px;
+  align-items: center;
+  gap: 28px;
+  padding: max(12px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
   text-align: center;
 }
 
+.final .map-town {
+  height: 110px;
+}
+
 .final-cat {
+  position: relative;
+  flex: none;
   width: 150px;
   height: 150px;
-  animation: cat-pop 600ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  filter: drop-shadow(0 4px 6px rgba(8, 10, 40, 0.55));
+  animation:
+    cat-pop 600ms cubic-bezier(0.3, 1.6, 0.5, 1) both,
+    cat-cheer 480ms ease-in-out 600ms 8 alternate;
+}
+
+.final-cat .cheer-arm {
+  transform-box: view-box;
+  animation: arm-wave 260ms ease-in-out 550ms 16 alternate;
+}
+
+.final-cat .cheer-arm-l {
+  transform-origin: 38px 78px;
+  --wave: -14deg;
+}
+
+.final-cat .cheer-arm-r {
+  transform-origin: 62px 78px;
+  --wave: 14deg;
+}
+
+.final-note {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 360px;
 }
 
 .final-title {
   margin: 0;
-  color: var(--gold);
-  font-size: 26px;
-  font-weight: 800;
+  color: #fff;
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1.12;
+  text-wrap: balance;
+  --ol: #3b1f86;
 }
 
 .final-credit {
   margin: 0;
-  color: var(--pink);
-  font-size: 20px;
-  font-weight: 700;
+  color: #ffc2da;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.2;
+  --ol: #8c1840;
 }
 
 .final-back {
-  min-width: 180px;
+  min-width: 190px;
   min-height: 48px;
-  margin-top: 12px;
-  padding: 0 24px;
-  border: 2px solid var(--gold);
-  border-radius: 24px;
-  background: var(--gold);
-  color: var(--night);
-  font-size: 16px;
-  font-weight: 800;
+  margin-top: 8px;
+  padding: 0 22px 3px;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 14%, rgba(255, 255, 255, 0.55), transparent 70%),
+    linear-gradient(180deg, #9be86f, #45b52f 68%, #34992a);
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.2), 0 3px 0 #22701a, 0 5px 8px rgba(8, 10, 40, 0.45);
+  color: #fff;
+  font-size: 19px;
+  font-weight: 900;
+  line-height: 1.1;
+  --ol: #1d5e12;
 }
 
 @keyframes node-pulse {
@@ -1306,14 +1425,37 @@ body::after {
     transform: scale(1);
   }
   to {
-    transform: scale(1.12);
+    transform: scale(1.1);
+  }
+}
+
+@keyframes cat-bob {
+  to {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes heart-beat {
+  0%,
+  60%,
+  100% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.1);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .map-node.current .map-ball,
-  .final-cat {
+  .map-cat,
+  .map-heart,
+  .final-cat .cheer-arm {
     animation: none;
+  }
+
+  .final-cat {
+    animation: fade-in 250ms ease-out both;
   }
 }
 

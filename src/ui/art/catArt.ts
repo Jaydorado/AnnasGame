@@ -199,3 +199,127 @@ export function fishSvg(): string {
       `<circle cx="25" cy="46" r="4" fill="${night}"/>`,
   );
 }
+
+/** Deterministic 0..1 value for an integer, so the skyline is the same on every visit. */
+function hash01(n: number): number {
+  let h = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/** Height of the rooftop strip drawn by `rooftopsSvg`, in px (1 unit = 1 px); `.map-town` in styles.css matches it. */
+const TOWN_H = 150;
+
+interface TownLayer {
+  seed: number;
+  minW: number;
+  maxW: number;
+  minH: number;
+  maxH: number;
+  body: string;
+  rim: string;
+  lit: string;
+  unlit: string;
+  cats: boolean;
+}
+
+/** A little cat silhouette sitting on a roof at (x, y) (its paws), with glowing eyes. */
+function roofCat(x: number, y: number, flip: boolean): string {
+  const fur = '#0d1030';
+  return (
+    `<g transform="translate(${x} ${y})${flip ? ' scale(-1 1)' : ''}">` +
+    `<path d="M5 -3 Q17 -2 14 -14" fill="none" stroke="${fur}" stroke-width="3" stroke-linecap="round"/>` +
+    `<ellipse cx="0" cy="-8" rx="7" ry="9" fill="${fur}"/>` +
+    `<circle cx="-1" cy="-20" r="6" fill="${fur}"/>` +
+    `<path d="M-6.5 -22 L-6 -30 L-1.5 -25 Z M4.5 -22 L4 -30 L-0.5 -25 Z" fill="${fur}"/>` +
+    `<circle cx="-3.3" cy="-20.5" r="1.3" fill="#ffd84a"/><circle cx="1.3" cy="-20.5" r="1.3" fill="#ffd84a"/>` +
+    `</g>`
+  );
+}
+
+function townLayer(width: number, l: TownLayer): string {
+  let out = '';
+  let x = -12;
+  for (let i = 0; x < width; i++) {
+    const r = (k: number): number => hash01(l.seed * 7919 + i * 31 + k);
+    const w = Math.round(l.minW + r(1) * (l.maxW - l.minW));
+    const h = Math.round(l.minH + r(2) * (l.maxH - l.minH));
+    const top = TOWN_H - h;
+    const kind = Math.floor(r(3) * 3); // 0 gable, 1 flat with a chimney, 2 steep tower roof
+    const rim = `fill="none" stroke="${l.rim}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"`;
+    out += `<rect x="${x}" y="${top}" width="${w}" height="${h}" fill="${l.body}"/>`;
+    if (kind === 0) {
+      const rh = Math.round(Math.min(26, w * 0.4));
+      out +=
+        `<path d="M${x - 4} ${top + 1} L${x + w / 2} ${top - rh} L${x + w + 4} ${top + 1} Z" fill="${l.body}"/>` +
+        `<path d="M${x - 4} ${top + 1} L${x + w / 2} ${top - rh} L${x + w + 4} ${top + 1}" ${rim}/>`;
+    } else if (kind === 1) {
+      const cx = Math.round(x + w * 0.72);
+      out +=
+        `<rect x="${cx}" y="${top - 12}" width="9" height="14" fill="${l.body}"/>` +
+        `<path d="M${cx - 1} ${top - 12} H${cx + 10} M${x} ${top} H${x + w}" ${rim}/>`;
+      if (l.cats && r(5) < 0.55) out += roofCat(Math.round(x + w * 0.32), top, r(6) < 0.5);
+    } else {
+      const rh = Math.round(Math.min(44, w * 0.85));
+      out +=
+        `<path d="M${x + 2} ${top + 1} L${x + w / 2} ${top - rh} L${x + w - 2} ${top + 1} Z" fill="${l.body}"/>` +
+        `<path d="M${x + 2} ${top + 1} L${x + w / 2} ${top - rh} L${x + w - 2} ${top + 1}" ${rim}/>`;
+    }
+    const cols = Math.max(1, Math.floor((w - 8) / 15));
+    const rows = Math.max(1, Math.floor((h - 12) / 18));
+    const x0 = x + (w - (cols * 15 - 7)) / 2;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const on = r(10 + row * 7 + col) < 0.32;
+        out += `<rect x="${x0 + col * 15}" y="${top + 9 + row * 18}" width="8" height="10" rx="2" fill="${on ? l.lit : l.unlit}"/>`;
+      }
+    }
+    x += w + Math.round(r(4) * 8) - 3;
+  }
+  return out;
+}
+
+/**
+ * Night-time rooftops `width` px wide and TOWN_H tall: a hazy far row and a darker near row with
+ * warm lit windows, chimneys and a few cat silhouettes. The same `width` always draws the same town.
+ */
+export function rooftopsSvg(width: number): string {
+  const far = townLayer(width, {
+    seed: 1, minW: 46, maxW: 84, minH: 58, maxH: 96,
+    body: '#2c3170', rim: '#4b52a3', lit: '#f7d589', unlit: '#383e84', cats: false,
+  });
+  const near = townLayer(width, {
+    seed: 2, minW: 64, maxW: 120, minH: 26, maxH: 58,
+    body: '#1a1d4a', rim: '#3a3f86', lit: '#ffc45e', unlit: '#262a60', cats: true,
+  });
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${TOWN_H}" preserveAspectRatio="xMinYMax slice" aria-hidden="true">` +
+    `<g opacity="0.85">${far}</g>${near}</svg>`
+  );
+}
+
+/** Four-point twinkle star centred on (x, y) with radius r. */
+function sparkle(x: number, y: number, r: number, fill: string): string {
+  const q = r * 0.28;
+  return `<path d="M${x} ${y - r} Q${x + q} ${y - q} ${x + r} ${y} Q${x + q} ${y + q} ${x} ${y + r} Q${x - q} ${y + q} ${x - r} ${y} Q${x - q} ${y - q} ${x} ${y - r} Z" fill="${fill}"/>`;
+}
+
+/** The map's night sky in an 800×360 box (drawn with `slice`): a glowing moon and twinkle stars. */
+export function nightSkySvg(): string {
+  const { cream, gold } = PALETTE;
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 360" preserveAspectRatio="xMidYMid slice" aria-hidden="true">` +
+    `<circle cx="470" cy="84" r="56" fill="#fff3c9" opacity="0.08"/>` +
+    `<circle cx="470" cy="84" r="40" fill="#fff3c9" opacity="0.12"/>` +
+    `<circle cx="470" cy="84" r="28" fill="#fff1c2"/>` +
+    `<circle cx="461" cy="78" r="6" fill="#efdca0"/><circle cx="480" cy="93" r="4.5" fill="#efdca0"/><circle cx="477" cy="72" r="3" fill="#efdca0"/>` +
+    `<path d="M448 70 A28 28 0 0 1 466 57" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.7"/>` +
+    sparkle(250, 70, 7, cream) +
+    sparkle(360, 132, 5, gold) +
+    sparkle(610, 120, 6, cream) +
+    sparkle(140, 150, 5, gold) +
+    sparkle(700, 190, 4, cream) +
+    sparkle(40, 90, 4, cream) +
+    `</svg>`
+  );
+}
