@@ -155,9 +155,9 @@ Missing, unparsable, or schema-invalid save → fresh save (100 coins, level 1 u
 
 - `vite-plugin-pwa`, `registerType: 'autoUpdate'`; precache all build assets; app works offline after first load.
 - Manifest: name "Solitaire Dreams" (short name "Solitaire"), `display: standalone`, `orientation: portrait`, theme/background colors from the palette, 192/512 px and maskable icons (own art).
-- Vite `base` taken from env `VITE_BASE` (set to `/<repo-name>/` in CI) so Pages sub-path hosting works.
+- Vite `base` taken from env `VITE_BASE` (set to `/AnnasGame/` in CI) so Pages sub-path hosting works. Live URL: `https://jaydorado.github.io/AnnasGame/`.
 - GitHub Actions workflow: on push to `main`, `npm ci`, `npm test`, `npm run build`, deploy `dist/` to GitHub Pages.
-- Needs Jay: create the GitHub repo and enable Pages (source: GitHub Actions). Then send her the URL; she opens it in Chrome → "Install app".
+- Repo: `https://github.com/Jaydorado/AnnasGame`. Needs Jay: enable Pages (Settings → Pages → Source: GitHub Actions). Then send her the URL; she opens it in Chrome → "Install app".
 
 ## Testing
 
