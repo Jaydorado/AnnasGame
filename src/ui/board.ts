@@ -5,11 +5,7 @@
 import type { Card, Top } from '../core/cards';
 import { isExposed, type Layout } from '../core/layout';
 import { cardBackSvg, cardFaceSvg, wildCardSvg } from './art/cardArt';
-
-export const ROW_STEP = 0.5;
-export const CARD_ASPECT = 1.4;
-/** Breathing room between the table and the board edges, CSS px. */
-const PAD = 8;
+import { fitBoard } from './boardFit';
 
 const SUIT_NAMES = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
 const RANK_NAMES = ['', 'Ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Jack', 'Queen', 'King'] as const;
@@ -76,20 +72,13 @@ export function createBoard(
       });
     },
     fit() {
-      const areaW = area.clientWidth;
-      const areaH = area.clientHeight;
-      const depth = 1 + (layout.rows - 1) * ROW_STEP; // table height in card heights
-      const w = Math.max(0, Math.min((areaW - 2 * PAD) / layout.width, (areaH - 2 * PAD) / (depth * CARD_ASPECT)));
-      const h = CARD_ASPECT * w;
-      const offsetX = (areaW - layout.width * w) / 2;
-      el.style.top = `${(areaH - depth * h) / 2}px`;
-      el.style.height = `${depth * h}px`;
+      const f = fitBoard(area.clientWidth, area.clientHeight, layout);
       layout.slots.forEach((s, i) => {
         const st = slots[i].style;
-        st.left = `${offsetX + s.x * w}px`;
-        st.top = `${s.row * ROW_STEP * h}px`;
-        st.width = `${w}px`;
-        st.height = `${h}px`;
+        st.left = `${f.offsetX + s.x * f.cardW}px`;
+        st.top = `${f.offsetY + s.row * f.rowStep * f.cardH}px`;
+        st.width = `${f.cardW}px`;
+        st.height = `${f.cardH}px`;
       });
     },
     destroy: () => el.remove(),

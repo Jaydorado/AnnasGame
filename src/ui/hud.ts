@@ -1,4 +1,4 @@
-/** Top bar: back to map, level title, streak meter and the coin counter. */
+/** HUD over the top corners: back to map and level title (left), coin counter and streak meter (right). */
 import { pop, reducedMotion } from './fx';
 
 const COUNT_MS = 400;

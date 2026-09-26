@@ -13,7 +13,7 @@ export default defineConfig({
         short_name: 'Solitaire',
         description: 'Cat-themed TriPeaks solitaire. No waiting, no shop.',
         display: 'standalone',
-        orientation: 'portrait',
+        orientation: 'landscape',
         background_color: '#141d3b',
         theme_color: '#141d3b',
         icons: [

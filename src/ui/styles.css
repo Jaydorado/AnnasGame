@@ -83,11 +83,14 @@ body::after {
 
 /* ---------- Level screen ---------- */
 
+/* The landscape frame: --strip-h and --booster-w are set from src/ui/frame.ts (applyFrame), which
+   also feeds the board-fit math. The HUD overlays the top corners instead of taking a row. */
 .level {
   position: fixed;
   inset: 0;
   display: grid;
-  grid-template-rows: 56px minmax(0, 1fr) 150px;
+  grid-template-columns: minmax(0, 1fr) var(--booster-w);
+  grid-template-rows: minmax(0, 1fr) var(--strip-h);
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   overflow: hidden;
 }
@@ -123,16 +126,23 @@ body::after {
 /* HUD */
 
 .hud {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 12px 0 6px;
+  position: relative;
+  z-index: 15;
+  grid-area: 1 / 1 / 3 / 3;
+  align-self: start;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: 44px auto;
+  gap: 4px 8px;
+  padding: 4px;
+  pointer-events: none; /* the board runs under the HUD; only the back button takes taps */
 }
 
 .hud-back {
-  flex: none;
+  grid-area: 1 / 1;
   width: 44px;
   height: 44px;
+  pointer-events: auto;
   padding: 0 0 4px;
   border: 2px solid rgba(244, 201, 93, 0.5);
   border-radius: 50%;
@@ -142,16 +152,23 @@ body::after {
 }
 
 .hud-level {
-  flex: 1;
-  font-size: 18px;
+  grid-area: 2 / 1;
+  justify-self: start;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(20, 29, 59, 0.6);
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.02em;
 }
 
 .hud-streak {
   position: relative;
-  min-width: 48px;
-  padding: 4px 10px;
+  grid-area: 2 / 3;
+  justify-self: end;
+  min-width: 44px;
+  padding: 1px 10px;
+  font-size: 14px;
   border-radius: 999px;
   background: rgba(247, 168, 196, 0.15);
   color: var(--pink);
@@ -180,10 +197,16 @@ body::after {
 }
 
 .hud-coins {
+  grid-area: 1 / 3;
+  justify-self: end;
+  align-self: center;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   min-width: 64px;
+  padding: 4px 12px 4px 6px;
+  border-radius: 999px;
+  background: rgba(20, 29, 59, 0.7);
   color: var(--gold);
   font-size: 18px;
   font-weight: 800;
@@ -192,13 +215,13 @@ body::after {
 /* Table and cards */
 
 .board {
+  grid-area: 1 / 1;
   position: relative;
 }
 
 .table {
   position: absolute;
-  left: 0;
-  right: 0;
+  inset: 0;
 }
 
 .card,
@@ -249,16 +272,14 @@ body::after {
   height: 100%;
 }
 
-/* Bottom bar */
+/* Bottom strip: stock and discard at bottom centre, one strip-high card each */
 
 .bar {
+  grid-area: 2 / 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 4px 10px 8px;
-  background: linear-gradient(180deg, transparent, rgba(7, 11, 28, 0.55) 30%);
+  justify-content: center;
+  padding: 6px 10px;
 }
 
 .piles {
@@ -269,8 +290,8 @@ body::after {
 
 .pile {
   position: relative;
-  width: 60px;
-  height: 84px;
+  width: calc((var(--strip-h) - 12px) / 1.4);
+  height: calc(var(--strip-h) - 12px);
   padding: 0;
   border: 0;
   border-radius: 6px;
@@ -310,21 +331,37 @@ body::after {
   line-height: 26px;
 }
 
+/* Booster column on the right edge, below the HUD's coin corner */
+
 .boosters {
+  grid-area: 1 / 2 / 3 / 3;
   display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
   gap: 8px;
-  width: 100%;
-  max-width: 420px;
+  padding: 0 6px 10px;
 }
 
 .booster {
-  flex: 1;
-  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  min-height: 52px;
+  padding: 4px 2px;
   border: 2px solid var(--gold);
-  border-radius: 22px;
+  border-radius: 16px;
   background: rgba(34, 48, 107, 0.85);
   font-size: 15px;
   font-weight: 800;
+  line-height: 1.1;
+}
+
+.booster-cost {
+  color: var(--gold);
+  font-size: 13px;
 }
 
 .booster:disabled {
@@ -771,4 +808,45 @@ body::after {
   .final-cat {
     animation: none;
   }
+}
+
+/* ---------- Portrait overlay: the game is landscape-only ---------- */
+
+.rotate {
+  display: none;
+}
+
+@media (orientation: portrait) {
+  .rotate {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    background: linear-gradient(180deg, var(--night) 0%, var(--night-2) 100%);
+    text-align: center;
+  }
+}
+
+.rotate-cat {
+  width: 140px;
+  height: 140px;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45));
+}
+
+.rotate-cat svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.rotate-text {
+  margin: 0;
+  color: var(--gold);
+  font-size: 26px;
+  font-weight: 800;
 }

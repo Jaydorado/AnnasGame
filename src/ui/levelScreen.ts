@@ -1,5 +1,6 @@
 /**
- * The playable level: HUD, table, bottom bar (stock, discard, boosters) and dialogs.
+ * The playable level in the landscape frame: board, bottom strip (stock, discard), booster column on
+ * the right, HUD over the top corners, and dialogs.
  * All rules live in core/game; this screen dispatches actions and animates the difference.
  */
 import type { Top } from '../core/cards';
@@ -12,6 +13,7 @@ import { cardBackSvg } from './art/cardArt';
 import { cardLabel, createBoard, topSvg } from './board';
 import { showStuckDialog, showWinDialog, type WinInfo } from './dialogs';
 import { confetti, flyCard, pop, sparkleBurst, wiggle } from './fx';
+import { applyFrame } from './frame';
 import { createHud } from './hud';
 
 export interface LevelDeps {
@@ -22,10 +24,10 @@ export interface LevelDeps {
 
 type Booster = 'undo' | 'wild' | 'addFive';
 
-const BOOSTERS: readonly { readonly type: Booster; readonly label: string }[] = [
-  { type: 'undo', label: `Undo · ${ECON.undoCost}` },
-  { type: 'wild', label: `Wild · ${ECON.wildCost}` },
-  { type: 'addFive', label: `+${ECON.addFiveCount} · ${ECON.addFiveCost}` },
+const BOOSTERS: readonly { readonly type: Booster; readonly name: string; readonly cost: number }[] = [
+  { type: 'undo', name: 'Undo', cost: ECON.undoCost },
+  { type: 'wild', name: 'Wild', cost: ECON.wildCost },
+  { type: 'addFive', name: `+${ECON.addFiveCount}`, cost: ECON.addFiveCost },
 ];
 
 export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps): () => void {
@@ -39,6 +41,7 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
 
   const screen = document.createElement('div');
   screen.className = 'level';
+  applyFrame(screen);
   const hud = createHud(level.id, state.coins, () => {
     persistCoins();
     deps.exit('map');
@@ -51,19 +54,23 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
     `<div class="piles">` +
     `<button type="button" class="pile stock"><span class="pile-card">${cardBackSvg()}</span><span class="pile-count"></span></button>` +
     `<div class="pile discard" role="img"></div>` +
-    `</div>` +
-    `<div class="boosters">` +
-    BOOSTERS.map((b) => `<button type="button" class="booster" data-booster="${b.type}">${b.label}</button>`).join('') +
     `</div>`;
+  const boostersEl = document.createElement('div');
+  boostersEl.className = 'boosters';
+  boostersEl.innerHTML = BOOSTERS.map(
+    (b) =>
+      `<button type="button" class="booster" data-booster="${b.type}" aria-label="${b.name} · ${b.cost}">` +
+      `<span class="booster-name">${b.name}</span><span class="booster-cost">${b.cost}</span></button>`,
+  ).join('');
   const fx = document.createElement('div');
   fx.className = 'fx';
-  screen.append(hud.el, area, bar, fx);
+  screen.append(hud.el, area, bar, boostersEl, fx);
   root.append(screen);
 
   const stockEl = bar.querySelector<HTMLButtonElement>('.stock')!;
   const countEl = bar.querySelector<HTMLElement>('.pile-count')!;
   const discardEl = bar.querySelector<HTMLElement>('.discard')!;
-  const boosterEls = [...bar.querySelectorAll<HTMLButtonElement>('.booster')];
+  const boosterEls = [...boostersEl.querySelectorAll<HTMLButtonElement>('.booster')];
 
   const onTap = (slot: number, el: HTMLButtonElement): void => act({ type: 'play', slot }, el);
   let board = createBoard(area, state.layout, state.table, onTap);
