@@ -1,7 +1,7 @@
 /** Modal dialogs over the level screen. Each `show*` returns a function that closes it. */
 import { ECON } from '../core/economy';
 import type { Stars } from '../progress/save';
-import { catHeadSvg } from './art/catArt';
+import { cheerCatSvg } from './art/catArt';
 
 export interface WinInfo {
   readonly stars: Stars;
@@ -70,7 +70,7 @@ export function showWinDialog(
     host,
     'win',
     `<div class="win-hero">` +
-      `<div class="win-cat">${catHeadSvg()}</div>` +
+      `<div class="win-cat">${cheerCatSvg()}</div>` +
       `<h2 id="dialog-title">Level clear!</h2>` +
       `<div class="stars" role="img" aria-label="${info.stars} of 3 stars">${stars}</div>` +
       `</div>` +

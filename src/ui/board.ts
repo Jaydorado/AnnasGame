@@ -7,6 +7,7 @@ import { isExposed, type Layout } from '../core/layout';
 import { cardBackSvg, cardFaceSvg, wildCardSvg } from './art/cardArt';
 import { fitBoard } from './boardFit';
 import { hudBoxes } from './frame';
+import { flipCard } from './fx';
 
 const SUIT_NAMES = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
 export const RANK_NAMES = ['', 'Ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Jack', 'Queen', 'King'] as const;
@@ -50,6 +51,8 @@ export function createBoard(
   });
   // The face is rendered when a card is first exposed, so covered cards stay unknown in the DOM.
   const faces: (Card | null)[] = layout.slots.map(() => null);
+  const ups: boolean[] = layout.slots.map(() => false);
+  let dealt = false; // the first update (the deal) flips nothing
   el.append(...slots);
   el.addEventListener('click', (e) => {
     const b = (e.target as Element).closest<HTMLButtonElement>('button.card');
@@ -70,7 +73,10 @@ export function createBoard(
         }
         b.classList.toggle('up', up);
         b.setAttribute('aria-label', up ? cardLabel(card) : 'face-down card');
+        if (dealt && up !== ups[i]) flipCard(b, up);
+        ups[i] = up;
       });
+      dealt = true;
     },
     fit() {
       const f = fitBoard(area.clientWidth, area.clientHeight, layout, hudBoxes(area.clientWidth));

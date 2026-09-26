@@ -16,7 +16,7 @@ import { boosterIconSvg } from './art/hudArt';
 import { basketCatSvg, cushionSvg } from './art/tableArt';
 import { cardLabel, createBoard, topSvg } from './board';
 import { showStuckDialog, showWinDialog, type WinInfo } from './dialogs';
-import { confetti, flyCard, pop, sparkleBurst, wiggle } from './fx';
+import { coinPop, confetti, fadeIn, flyCard, playCoins, pop, reducedMotion, sparkleBurst, streakPop, wiggle } from './fx';
 import { applyFrame } from './frame';
 import { hintSeen, hintText, markHintSeen } from './hint';
 import { createHud } from './hud';
@@ -46,6 +46,8 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
   let win: WinInfo | null = null; // set once the win is recorded in the save
   let dialog: { readonly kind: 'win' | 'stuck'; readonly close: () => void } | null = null;
   let inFlight = 0; // cards still flying to the discard
+  let flights = 0; // flights started, numbering each one
+  let landedSeq = 0; // newest flight whose card the discard shows
   let shownTop: Top | null = null;
   let mounted = true;
   let idleTimer = 0; // idle-nudge timeout; 0 while none is armed
@@ -99,7 +101,10 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
   const discardEl = bar.querySelector<HTMLElement>('.discard')!;
   const boosterEls = [...boostersEl.querySelectorAll<HTMLButtonElement>('.booster')];
 
-  const onTap = (slot: number, el: HTMLButtonElement): void => act({ type: 'play', slot }, el);
+  // A card that is gone (already played, possibly still in flight) ignores taps: no second play, no shake.
+  const onTap = (slot: number, el: HTMLButtonElement): void => {
+    if (state.table[slot]) act({ type: 'play', slot }, el);
+  };
   let board = createBoard(area, state.layout, state.table, onTap);
   stockEl.addEventListener('click', () => act({ type: 'draw' }, stockEl));
   for (const b of boosterEls) b.addEventListener('click', () => act({ type: b.dataset.booster as Booster }, b));
@@ -121,6 +126,10 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
     persist();
   }
 
+  /**
+   * The state changes at once on every tap; animations only render the difference, so a tap during
+   * a flight is judged against the new state (a fast legal double play works, an illegal one shakes).
+   */
   function act(action: Action, tapped: HTMLElement): void {
     if (dialog) return; // modal: the inert background can still receive script clicks
     const next = reduce(state, action);
@@ -131,17 +140,28 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
     const prev = state;
     state = next;
     if (action.type === 'play') {
+      // Both rects are read before any DOM write, so the flight costs one layout.
       const from = board.slot(action.slot).getBoundingClientRect();
+      const to = discardEl.getBoundingClientRect();
       board.update(state.table);
-      fly(from, topSvg(prev.table[action.slot]!), true);
+      fly(from, to, top(state), true);
+      const coins = playCoins(prev, state);
+      const x = from.left + from.width / 2;
+      const y = from.top + from.height / 2;
+      if (coins.card > 0) coinPop(fx, x, y, coins.card);
+      if (coins.streak > 0) streakPop(fx, x, y, coins.streak);
       if (hintEl) {
         markHintSeen();
         hintEl.remove();
         hintEl = null;
       }
+    } else if (action.type === 'draw') {
+      const from = stockEl.getBoundingClientRect();
+      const to = discardEl.getBoundingClientRect();
+      board.update(state.table);
+      fly(from, to, top(state), false, cardBackSvg());
     } else {
       board.update(state.table);
-      if (action.type === 'draw') fly(stockEl.getBoundingClientRect(), topSvg(top(state)), false, cardBackSvg());
       if (action.type === 'addFive') pop(stockEl);
     }
     if (state.status === 'won') recordVictory();
@@ -150,16 +170,30 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
     if (action.type === 'wild') pop(discardEl);
   }
 
-  /** A card copy flies to the discard; the discard updates once every flight has landed. */
-  function fly(from: DOMRect, face: string, sparkle: boolean, back?: string): void {
-    const to = discardEl.getBoundingClientRect();
+  /**
+   * A card copy flies to the discard. Each landing shows its card unless a newer one already landed;
+   * the landing that ends the last flight settles the discard on the state's top.
+   */
+  function fly(from: DOMRect, to: DOMRect, card: Top, sparkle: boolean, back?: string): void {
+    const seq = ++flights;
     inFlight++;
-    void flyCard(fx, from, to, face, back).then(() => {
+    void flyCard(fx, from, to, topSvg(card), back).then(() => {
       if (!mounted) return;
       inFlight--;
       if (sparkle) sparkleBurst(fx, to.left + to.width / 2, to.top + to.height / 2);
+      if (inFlight > 0 && seq > landedSeq) showDiscard(card);
+      landedSeq = Math.max(landedSeq, seq);
       settle();
     });
+  }
+
+  function showDiscard(t: Top): void {
+    if (t === shownTop) return;
+    shownTop = t;
+    discardEl.innerHTML = topSvg(t);
+    discardEl.setAttribute('aria-label', `Discard: ${cardLabel(t)}`);
+    if (hintEl) hintEl.querySelector('.hint-bubble')!.textContent = hintText(t);
+    if (reducedMotion()) fadeIn(discardEl);
   }
 
   function recordVictory(): void {
@@ -184,13 +218,7 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
   /** Runs once no card is in flight: shows the discard top and any end-of-level dialog. */
   function settle(): void {
     if (inFlight > 0) return;
-    const t = top(state);
-    if (t !== shownTop) {
-      shownTop = t;
-      discardEl.innerHTML = topSvg(t);
-      discardEl.setAttribute('aria-label', `Discard: ${cardLabel(t)}`);
-      if (hintEl) hintEl.querySelector('.hint-bubble')!.textContent = hintText(t);
-    }
+    showDiscard(top(state));
     const wanted = win ? 'win' : state.status === 'stuck' ? 'stuck' : null;
     if (dialog && dialog.kind !== wanted) closeDialog(); // the state moved on by some other path: never leave it stale
     if (dialog || !wanted) return;
@@ -203,7 +231,7 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
           map: () => deps.exit('map'),
         }),
       };
-      confetti(fx);
+      celebrate();
     } else {
       dialog = {
         kind: 'stuck',
@@ -229,6 +257,15 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
       };
     }
     syncModal();
+  }
+
+  /** Win: confetti across the screen and a big paw-print burst behind the cheering cat. */
+  function celebrate(): void {
+    confetti(fx);
+    const hero = screen.querySelector<HTMLElement>('.win-hero');
+    if (!hero) return;
+    const r = hero.getBoundingClientRect();
+    sparkleBurst(fx, r.left + r.width / 2, r.top + 48, true); // the 96 px cat tops the hero column
   }
 
   function closeDialog(): void {

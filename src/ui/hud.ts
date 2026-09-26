@@ -3,7 +3,7 @@
  * Each side stays inside its corner box from frame.ts (HUD_LEFT_W / HUD_RIGHT_W by HUD_H).
  */
 import { backIconSvg } from './art/hudArt';
-import { pop, reducedMotion } from './fx';
+import { bounce, pop, reducedMotion } from './fx';
 
 const COUNT_MS = 400;
 const HOT_STREAK = 5;
@@ -48,7 +48,7 @@ export function createHud(levelId: number, coins: number, onBack: () => void): H
         valueEl.textContent = String(next);
         return;
       }
-      pop(coinsEl);
+      bounce(coinsEl);
       const from = shown;
       const start = performance.now();
       const step = (now: number): void => {
@@ -61,7 +61,7 @@ export function createHud(levelId: number, coins: number, onBack: () => void): H
     },
     setStreak(next) {
       if (next === streak) return;
-      if (next > streak) pop(streakEl);
+      if (next > streak) pop(streakEl, Math.min(1.15 + next * 0.03, 1.5)); // bigger combos pop bigger
       streak = next;
       streakEl.textContent = `×${next}`;
       streakEl.classList.toggle('hot', next >= HOT_STREAK);

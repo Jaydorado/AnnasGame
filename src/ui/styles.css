@@ -154,7 +154,9 @@ body::after {
 .booster-cost,
 .dialog h2,
 .dialog .wallet,
-.dialog-actions button {
+.dialog-actions button,
+.coin-pop,
+.streak-pop {
   text-shadow:
     1.5px 0 var(--ol), -1.5px 0 var(--ol), 0 1.5px var(--ol), 0 -1.5px var(--ol),
     1.1px 1.1px var(--ol), -1.1px 1.1px var(--ol), 1.1px -1.1px var(--ol), -1.1px -1.1px var(--ol),
@@ -340,7 +342,6 @@ body::after {
   height: 100%;
   transform-style: preserve-3d;
   transform: rotateY(180deg);
-  transition: transform 250ms ease-out;
 }
 
 .up > .card-inner {
@@ -718,15 +719,21 @@ body::after {
   pointer-events: none;
 }
 
+/* Flights scale and squash around the bottom centre, so the landing squash sits on the discard. */
 .flyer {
   position: absolute;
-  transform-origin: 0 0;
+  transform-origin: 50% 100%;
 }
 
 .sparkle {
   position: absolute;
   width: 18px;
   height: 18px;
+}
+
+.sparkle.big {
+  width: 30px;
+  height: 30px;
 }
 
 .confetti {
@@ -741,6 +748,38 @@ body::after {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* Coin popups: "+1" from each cleared card, and the bigger "+N streak!" on streak bonuses. Centred on
+   their point by a static translate that the float animation repeats. */
+.coin-pop,
+.streak-pop {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  font-weight: 900;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+}
+
+.coin-pop {
+  color: #ffd23f;
+  font-size: 22px;
+  --ol: #8a4a0f;
+}
+
+.coin-pop .coin {
+  width: 20px;
+  height: 20px;
+}
+
+.streak-pop {
+  z-index: 1;
+  color: #fff;
+  font-size: 32px;
+  --ol: #c2185b;
 }
 
 /* Dialogs: landscape, compact enough for 360 px of height. The backdrop scrolls as a safety net, and
@@ -810,7 +849,25 @@ body::after {
   width: 96px;
   height: 96px;
   filter: drop-shadow(0 3px 3px rgba(120, 60, 10, 0.35));
-  animation: cat-pop 500ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  animation:
+    cat-pop 500ms cubic-bezier(0.3, 1.6, 0.5, 1) both,
+    cat-cheer 480ms ease-in-out 500ms 6 alternate;
+}
+
+/* The cheering cat waves both raised paws around its shoulders a few times, then rests. */
+.win-cat .cheer-arm {
+  transform-box: view-box;
+  animation: arm-wave 260ms ease-in-out 450ms 12 alternate;
+}
+
+.win-cat .cheer-arm-l {
+  transform-origin: 38px 78px;
+  --wave: -14deg;
+}
+
+.win-cat .cheer-arm-r {
+  transform-origin: 62px 78px;
+  --wave: 14deg;
 }
 
 .win-cat svg {
@@ -977,6 +1034,18 @@ body::after {
   }
 }
 
+@keyframes cat-cheer {
+  to {
+    transform: translateY(-7px) scale(1.04, 0.97);
+  }
+}
+
+@keyframes arm-wave {
+  to {
+    transform: rotate(var(--wave));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .level *,
   .level *::before,
@@ -999,6 +1068,22 @@ body::after {
   .level .card.nudge,
   .level .stock.nudge {
     animation: nudge-fade 900ms ease-in-out !important;
+  }
+
+  /* Fades instead of movement: the dialog, the hint, and the win cat and stars (still one by one). */
+  .level .dialog,
+  .level .hint,
+  .level .win-cat {
+    animation: fade-in 250ms ease-out both !important;
+  }
+
+  .level .win-cat .cheer-arm {
+    animation: none !important;
+  }
+
+  .level .star.earned {
+    animation: fade-in 300ms ease-out both !important;
+    animation-delay: calc(250ms + var(--i) * 220ms) !important;
   }
 }
 

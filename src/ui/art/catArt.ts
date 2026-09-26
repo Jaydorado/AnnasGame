@@ -116,6 +116,40 @@ export function catHeadSvg(): string {
   );
 }
 
+/**
+ * The win dialog's cheering cat: happy closed eyes, open smile, blushing cheeks, both paws raised.
+ * Each arm is a `.cheer-arm` group (left/right) so CSS can wave it around its shoulder.
+ */
+export function cheerCatSvg(): string {
+  const { night, cream, pink } = PALETTE;
+  const arm = (side: 'l' | 'r', sx: number, px: number): string =>
+    `<g class="cheer-arm cheer-arm-${side}">` +
+    `<path d="M${sx} 78 L${px} 34" stroke="${GINGER}" stroke-width="11" stroke-linecap="round"/>` +
+    `<circle cx="${px}" cy="31" r="8.5" fill="${GINGER}"/>` +
+    `<circle cx="${px}" cy="32.5" r="3.6" fill="${pink}"/>` +
+    `</g>`;
+  return svgRoot(
+    '0 0 100 100',
+    'cheering cat',
+    arm('l', 38, 15) +
+      arm('r', 62, 85) +
+      `<ellipse cx="50" cy="88" rx="23" ry="14" fill="${GINGER}"/>` +
+      `<ellipse cx="50" cy="91" rx="12" ry="8" fill="${cream}"/>` +
+      `<g transform="translate(14 4) scale(0.72)">` +
+      catFace({
+        fur: GINGER,
+        line: night,
+        eyes: `<path d="M31 55 Q38 45 45 55 M55 55 Q62 45 69 55" fill="none" stroke="${night}" stroke-width="4.5" stroke-linecap="round"/>`,
+        extras:
+          `<path d="M44 30 L45 38 M50 28.5 L50 37 M56 30 L55 38" fill="none" stroke="${GINGER_DARK}" stroke-width="3.5" stroke-linecap="round"/>` +
+          `<ellipse cx="29" cy="66" rx="6" ry="4" fill="${ROSE}" opacity="0.6"/><ellipse cx="71" cy="66" rx="6" ry="4" fill="${ROSE}" opacity="0.6"/>` +
+          `<path d="M42 70 Q50 88 58 70 Q50 73 42 70 Z" fill="#8a2a3a" stroke="${night}" stroke-width="2" stroke-linejoin="round"/>` +
+          `<path d="M45.5 78 Q50 85 54.5 78 Q50 75.5 45.5 78 Z" fill="${pink}"/>`,
+      }) +
+      `</g>`,
+  );
+}
+
 /** Paw print shapes (no <svg> root) in a 0..100 box. */
 export function pawShapes(color: string): string {
   return (
