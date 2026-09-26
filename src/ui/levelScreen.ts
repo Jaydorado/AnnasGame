@@ -10,6 +10,7 @@ import type { LevelDef } from '../core/level';
 import { LEVELS } from '../levels/levels';
 import { mergeSessionIntoSave, type SaveV1, type SessionWin } from '../progress/save';
 import { cardBackSvg } from './art/cardArt';
+import { basketCatSvg, cushionSvg } from './art/tableArt';
 import { cardLabel, createBoard, topSvg } from './board';
 import { showStuckDialog, showWinDialog, type WinInfo } from './dialogs';
 import { confetti, flyCard, pop, sparkleBurst, wiggle } from './fx';
@@ -29,6 +30,9 @@ const BOOSTERS: readonly { readonly type: Booster; readonly name: string; readon
   { type: 'wild', name: 'Wild', cost: ECON.wildCost },
   { type: 'addFive', name: `+${ECON.addFiveCount}`, cost: ECON.addFiveCost },
 ];
+
+/** Most backs drawn in the stock's stacked edge. */
+const STACK_MAX = 10;
 
 export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps): () => void {
   let state: GameState = deal(level, deps.getSave().coins);
@@ -50,9 +54,15 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
   area.className = 'board';
   const bar = document.createElement('footer');
   bar.className = 'bar';
+  // The stock is a stacked edge of up to STACK_MAX backs; layer k sits k steps to the left of the top.
+  const layers = Array.from({ length: STACK_MAX }, (_, i) => STACK_MAX - 1 - i)
+    .map((k) => `<span class="pile-card" data-k="${k}" style="--k:${k}">${cardBackSvg()}</span>`)
+    .join('');
   bar.innerHTML =
+    `<span class="prop prop-basket">${basketCatSvg()}</span>` +
+    `<span class="prop prop-cushion">${cushionSvg()}</span>` +
     `<div class="piles">` +
-    `<button type="button" class="pile stock"><span class="pile-card">${cardBackSvg()}</span><span class="pile-count"></span></button>` +
+    `<button type="button" class="pile stock">${layers}<span class="pile-count"></span></button>` +
     `<div class="pile discard" role="img"></div>` +
     `</div>`;
   const boostersEl = document.createElement('div');
@@ -69,6 +79,7 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
 
   const stockEl = bar.querySelector<HTMLButtonElement>('.stock')!;
   const countEl = bar.querySelector<HTMLElement>('.pile-count')!;
+  const layerEls = [...stockEl.querySelectorAll<HTMLElement>('.pile-card')];
   const discardEl = bar.querySelector<HTMLElement>('.discard')!;
   const boosterEls = [...boostersEl.querySelectorAll<HTMLButtonElement>('.booster')];
 
@@ -142,6 +153,7 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
     const left = state.stock.length;
     countEl.textContent = String(left);
     stockEl.classList.toggle('empty', left === 0);
+    for (const l of layerEls) l.hidden = Number(l.dataset.k) >= Math.min(left, STACK_MAX);
     stockEl.setAttribute('aria-label', `Draw a card, ${left} left`);
     for (const b of boosterEls) b.disabled = reduce(state, { type: b.dataset.booster as Booster }) === state;
   }

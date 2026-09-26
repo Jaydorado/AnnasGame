@@ -6,6 +6,9 @@
   --cream: #fff8ef;
   --suit-red: #d6336c;
   --suit-dark: #1b2a4a;
+  /* Card corners (10% of the width on a 100x140 card) and the soft shadow cards cast on the table */
+  --card-r: 10% / 7.143%;
+  --card-shadow: 0 1px 2px rgba(60, 20, 2, 0.35), 0 3px 8px rgba(60, 20, 2, 0.3);
 }
 
 *,
@@ -93,6 +96,17 @@ body::after {
   grid-template-rows: minmax(0, 1fr) var(--strip-h);
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   overflow: hidden;
+}
+
+/* Warm cartoon wooden tabletop: amber radial glow, soft plank grain, dark vignette at the edges.
+   Shared by the level screen and the dev gallery. */
+.level,
+.wood {
+  background:
+    radial-gradient(ellipse 72% 78% at 50% 44%, transparent 50%, rgba(74, 22, 2, 0.6) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='240'%3E%3Cg fill='none' stroke-linecap='round'%3E%3Cg stroke='%237a3208'%3E%3Cpath d='M0 1.5H480M0 121.5H480M150 1V121M390 121V240' stroke-opacity='.2' stroke-width='3'/%3E%3Cpath d='M0 28C80 20 160 38 240 28S400 20 480 28M0 98C90 90 170 106 260 96S410 92 480 98M0 150C120 158 220 142 320 150S430 156 480 150M0 206C70 198 180 214 260 206S400 200 480 206' stroke-opacity='.11' stroke-width='3'/%3E%3Cpath d='M0 60C100 68 200 52 300 62S420 66 480 60M0 178C90 172 200 188 300 178S430 172 480 178' stroke-opacity='.07' stroke-width='2'/%3E%3Cellipse cx='330' cy='66' rx='18' ry='6' stroke-opacity='.15' stroke-width='2.5'/%3E%3Cellipse cx='330' cy='66' rx='8' ry='2.5' stroke-opacity='.13' stroke-width='2'/%3E%3Cellipse cx='90' cy='180' rx='14' ry='5' stroke-opacity='.13' stroke-width='2.5'/%3E%3C/g%3E%3Cpath d='M0 12C120 6 260 18 480 10M0 134C140 128 300 140 480 132' stroke='%23ffe0a8' stroke-opacity='.14' stroke-width='4'/%3E%3C/g%3E%3C/svg%3E") center / 480px 240px,
+    radial-gradient(ellipse 85% 85% at 50% 40%, #f8b25a 0%, #ec8f3f 40%, #d26e2c 72%, #a94b1d 100%);
+  background-color: #d26e2c;
 }
 
 :where(.level button) {
@@ -265,8 +279,8 @@ body::after {
   position: absolute;
   inset: 0;
   display: block;
-  border-radius: 8% / 5.7%;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+  border-radius: var(--card-r);
+  box-shadow: var(--card-shadow);
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
 }
@@ -283,20 +297,53 @@ body::after {
   height: 100%;
 }
 
-/* Bottom strip: stock and discard at bottom centre, one strip-high card each */
+/* Bottom strip: stock (a stacked edge of backs) and discard at bottom centre, one strip-high card each;
+   the table props sit in its corners, behind the piles and out of the way of taps. */
 
 .bar {
   grid-area: 2 / 1;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 6px 10px;
 }
 
+.prop {
+  position: absolute;
+  pointer-events: none;
+  filter: blur(1.4px);
+}
+
+.prop svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Bigger than the strip and cropped by the screen's bottom edge, like props on a table seen up close. */
+.prop-basket {
+  left: -10px;
+  bottom: -4px;
+  width: 153px;
+  height: 90px;
+}
+
+.prop-cushion {
+  right: 2px;
+  bottom: -16px;
+  width: 150px;
+  height: 90px;
+}
+
 .piles {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
+  /* room for the stacked edge, which grows to the left of the stock's top card */
+  padding-left: calc((10 - 1) * var(--stack-step));
+  --stack-step: 5px;
 }
 
 .pile {
@@ -305,41 +352,49 @@ body::after {
   height: calc(var(--strip-h) - 12px);
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--card-r);
   background: none;
 }
 
-.pile-card {
-  display: block;
-  width: 100%;
-  height: 100%;
+.discard {
+  box-shadow: var(--card-shadow);
 }
 
-.pile svg {
-  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.45));
+.pile-card {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: var(--card-r);
+  box-shadow: -1px 1px 2px rgba(60, 20, 2, 0.35);
+  transform: translateX(calc(var(--k) * -1 * var(--stack-step)));
+}
+
+.pile-card[data-k="0"] {
+  box-shadow: var(--card-shadow);
 }
 
 .stock.empty {
-  outline: 2px dashed rgba(255, 248, 239, 0.35);
-}
-
-.stock.empty .pile-card {
-  visibility: hidden;
+  border: 2px dashed rgba(255, 236, 210, 0.6);
+  background: rgba(74, 26, 4, 0.22);
+  box-shadow: inset 0 2px 6px rgba(60, 20, 2, 0.35);
 }
 
 .pile-count {
   position: absolute;
-  top: -8px;
+  z-index: 1;
+  top: -9px;
   right: -10px;
   min-width: 26px;
   height: 26px;
   padding: 0 6px;
+  border: 2px solid #fff;
   border-radius: 13px;
-  background: var(--pink);
-  color: var(--night);
+  background: linear-gradient(180deg, #ff6f8e, #e8335a 60%, #c91f47);
+  box-shadow: 0 2px 3px rgba(60, 20, 2, 0.4);
+  color: #fff;
   font-size: 14px;
-  font-weight: 800;
-  line-height: 26px;
+  font-weight: 900;
+  line-height: 22px;
 }
 
 /* Booster column on the right edge, below the HUD's coin corner */
