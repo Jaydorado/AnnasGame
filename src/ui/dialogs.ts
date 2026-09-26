@@ -18,7 +18,14 @@ export interface StuckInfo {
 
 type Handlers = Record<string, () => void>;
 
+/**
+ * The dialog is truly modal: the host's other children are inert (no pointer, focus or activation)
+ * and Tab wraps within the dialog. Closing restores them and returns focus to the opener if it is still there.
+ */
 function openDialog(host: HTMLElement, cls: string, body: string, on: Handlers): () => void {
+  const opener = document.activeElement;
+  const background = [...host.children].filter((el): el is HTMLElement => el instanceof HTMLElement && !el.inert);
+  for (const el of background) el.inert = true;
   const backdrop = document.createElement('div');
   backdrop.className = 'dialog-backdrop';
   backdrop.innerHTML = `<div class="dialog ${cls}" role="dialog" aria-modal="true" aria-labelledby="dialog-title">${body}</div>`;
@@ -26,9 +33,22 @@ function openDialog(host: HTMLElement, cls: string, body: string, on: Handlers):
     const b = (e.target as Element).closest<HTMLButtonElement>('button[data-act]');
     if (b && !b.disabled) on[b.dataset.act!]();
   });
+  backdrop.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const buttons = [...backdrop.querySelectorAll<HTMLButtonElement>('button:enabled')];
+    const edge = e.shiftKey ? buttons[0] : buttons[buttons.length - 1];
+    if (edge && document.activeElement === edge) {
+      e.preventDefault();
+      (e.shiftKey ? buttons[buttons.length - 1] : buttons[0])!.focus({ preventScroll: true });
+    }
+  });
   host.append(backdrop);
   backdrop.querySelector<HTMLButtonElement>('button:enabled')?.focus({ preventScroll: true });
-  return () => backdrop.remove();
+  return () => {
+    backdrop.remove();
+    for (const el of background) el.inert = false;
+    if (opener instanceof HTMLElement && opener.isConnected) opener.focus({ preventScroll: true });
+  };
 }
 
 export function showWinDialog(

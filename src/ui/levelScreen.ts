@@ -31,7 +31,7 @@ const BOOSTERS: readonly { readonly type: Booster; readonly label: string }[] = 
 export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps): () => void {
   let state: GameState = deal(level, deps.getSave().coins);
   let win: WinInfo | null = null; // set once the win is recorded in the save
-  let closeDialog: (() => void) | null = null;
+  let dialog: { readonly kind: 'win' | 'stuck'; readonly close: () => void } | null = null;
   let inFlight = 0; // cards still flying to the discard
   let shownTop: Top | null = null;
   let mounted = true;
@@ -75,6 +75,7 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
   }
 
   function act(action: Action, tapped: HTMLElement): void {
+    if (dialog) return; // modal: the inert background can still receive script clicks
     const next = reduce(state, action);
     if (next === state) {
       wiggle(tapped);
@@ -136,46 +137,57 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
       discardEl.innerHTML = topSvg(t);
       discardEl.setAttribute('aria-label', `Discard: ${cardLabel(t)}`);
     }
-    if (closeDialog) return;
+    const wanted = win ? 'win' : state.status === 'stuck' ? 'stuck' : null;
+    if (dialog && dialog.kind !== wanted) closeDialog(); // the state moved on by some other path: never leave it stale
+    if (dialog || !wanted) return;
     if (win) {
-      closeDialog = showWinDialog(screen, win, {
-        next: () => deps.exit(win!.isLast ? 'final' : 'next'),
-        replay: redeal,
-        map: () => deps.exit('map'),
-      });
+      dialog = {
+        kind: 'win',
+        close: showWinDialog(screen, win, {
+          next: () => deps.exit(win!.isLast ? 'final' : 'next'),
+          replay: redeal,
+          map: () => deps.exit('map'),
+        }),
+      };
       confetti(fx);
-    } else if (state.status === 'stuck') {
-      closeDialog = showStuckDialog(
-        screen,
-        {
-          canAddFive: reduce(state, { type: 'addFive' }) !== state,
-          canWild: reduce(state, { type: 'wild' }) !== state,
-        },
-        {
-          addFive: () => boosterFromDialog({ type: 'addFive' }),
-          wild: () => boosterFromDialog({ type: 'wild' }),
-          retry: () => {
-            persistCoins();
-            redeal();
+    } else {
+      dialog = {
+        kind: 'stuck',
+        close: showStuckDialog(
+          screen,
+          {
+            canAddFive: reduce(state, { type: 'addFive' }) !== state,
+            canWild: reduce(state, { type: 'wild' }) !== state,
           },
-          map: () => {
-            persistCoins();
-            deps.exit('map');
+          {
+            addFive: () => boosterFromDialog({ type: 'addFive' }),
+            wild: () => boosterFromDialog({ type: 'wild' }),
+            retry: () => {
+              persistCoins();
+              redeal();
+            },
+            map: () => {
+              persistCoins();
+              deps.exit('map');
+            },
           },
-        },
-      );
+        ),
+      };
     }
   }
 
+  function closeDialog(): void {
+    dialog?.close();
+    dialog = null;
+  }
+
   function boosterFromDialog(action: Action): void {
-    closeDialog!();
-    closeDialog = null;
+    closeDialog();
     act(action, stockEl);
   }
 
   function redeal(): void {
-    closeDialog?.();
-    closeDialog = null;
+    closeDialog();
     win = null;
     state = deal(level, deps.getSave().coins);
     board.destroy();
