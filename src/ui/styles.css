@@ -1,0 +1,1501 @@
+:root {
+  --night: #141d3b;
+  --night-2: #22306b;
+  --gold: #f4c95d;
+  --pink: #f7a8c4;
+  --cream: #fff8ef;
+  --suit-red: #d6336c;
+  --suit-dark: #1b2a4a;
+  /* Card corners (10% of the width on a 100x140 card) and the soft shadow cards cast on the table */
+  --card-r: 10% / 7.143%;
+  --card-shadow: 0 1px 2px rgba(60, 20, 2, 0.35), 0 3px 8px rgba(60, 20, 2, 0.3);
+  /* Chunky rounded UI type; system fonts only, nothing is downloaded */
+  --font-round: ui-rounded, "SF Pro Rounded", "Nunito", "Arial Rounded MT Bold", "Varela Round", system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100dvh;
+  background: linear-gradient(180deg, var(--night) 0%, var(--night-2) 100%) fixed var(--night);
+  color: var(--cream);
+  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Twinkling star layers: two dot tiles of different sizes that pulse out of phase. */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  animation: twinkle 4s ease-in-out infinite alternate;
+}
+
+body::before {
+  background-image:
+    radial-gradient(1.5px 1.5px at 20px 30px, var(--cream), transparent),
+    radial-gradient(1px 1px at 90px 80px, var(--cream), transparent),
+    radial-gradient(1.5px 1.5px at 150px 20px, var(--gold), transparent),
+    radial-gradient(1px 1px at 60px 140px, var(--cream), transparent),
+    radial-gradient(1px 1px at 170px 120px, var(--cream), transparent);
+  background-size: 190px 170px;
+}
+
+body::after {
+  background-image:
+    radial-gradient(1px 1px at 40px 60px, var(--cream), transparent),
+    radial-gradient(2px 2px at 130px 50px, var(--cream), transparent),
+    radial-gradient(1px 1px at 230px 150px, var(--pink), transparent),
+    radial-gradient(1.5px 1.5px at 80px 200px, var(--cream), transparent);
+  background-size: 260px 240px;
+  animation-delay: -2s;
+  animation-duration: 5s;
+}
+
+@keyframes twinkle {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+/* ---------- Level screen ---------- */
+
+/* The landscape frame: --strip-h and --booster-w are set from src/ui/frame.ts (applyFrame), which
+   also feeds the board-fit math. The HUD overlays the top corners instead of taking a row. */
+.level {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--booster-w);
+  grid-template-rows: minmax(0, 1fr) var(--strip-h);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  overflow: hidden;
+  font-family: var(--font-round);
+}
+
+/* Warm cartoon wooden tabletop: amber radial glow, soft plank grain, dark vignette at the edges.
+   Shared by the level screen and the dev gallery. */
+.level,
+.wood {
+  background:
+    radial-gradient(ellipse 72% 78% at 50% 44%, transparent 50%, rgba(74, 22, 2, 0.6) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='240'%3E%3Cg fill='none' stroke-linecap='round'%3E%3Cg stroke='%237a3208'%3E%3Cpath d='M0 1.5H480M0 121.5H480M150 1V121M390 121V240' stroke-opacity='.2' stroke-width='3'/%3E%3Cpath d='M0 28C80 20 160 38 240 28S400 20 480 28M0 98C90 90 170 106 260 96S410 92 480 98M0 150C120 158 220 142 320 150S430 156 480 150M0 206C70 198 180 214 260 206S400 200 480 206' stroke-opacity='.11' stroke-width='3'/%3E%3Cpath d='M0 60C100 68 200 52 300 62S420 66 480 60M0 178C90 172 200 188 300 178S430 172 480 178' stroke-opacity='.07' stroke-width='2'/%3E%3Cellipse cx='330' cy='66' rx='18' ry='6' stroke-opacity='.15' stroke-width='2.5'/%3E%3Cellipse cx='330' cy='66' rx='8' ry='2.5' stroke-opacity='.13' stroke-width='2'/%3E%3Cellipse cx='90' cy='180' rx='14' ry='5' stroke-opacity='.13' stroke-width='2.5'/%3E%3C/g%3E%3Cpath d='M0 12C120 6 260 18 480 10M0 134C140 128 300 140 480 132' stroke='%23ffe0a8' stroke-opacity='.14' stroke-width='4'/%3E%3C/g%3E%3C/svg%3E") center / 480px 240px,
+    radial-gradient(ellipse 85% 85% at 50% 40%, #f8b25a 0%, #ec8f3f 40%, #d26e2c 72%, #a94b1d 100%);
+  background-color: #d26e2c;
+}
+
+:where(.level button) {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+:where(.level button:disabled) {
+  cursor: default;
+}
+
+.level button:focus-visible {
+  outline: 3px solid var(--pink);
+  outline-offset: 2px;
+}
+
+.level [hidden] {
+  display: none !important;
+}
+
+.coin {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff3c4, var(--gold) 55%, #b8862b);
+  box-shadow: inset 0 0 0 2px #b8862b;
+}
+
+/* Toy-like glossy coin for the level screen and the map: gold disc with a bright spot and a darker rim. */
+.level .coin,
+.map .coin {
+  background: radial-gradient(circle at 36% 30%, #fff8d6 0 14%, #ffd84a 40%, #f2a81c 78%, #c7761a);
+  box-shadow: inset 0 0 0 1.5px #a8631a, inset 0 -2px 0 1px rgba(150, 80, 10, 0.35), 0 1px 1px rgba(60, 20, 2, 0.35);
+}
+
+/* Chunky outlined numbers and labels: fill colour plus an 8-way outline in --ol and a dark bottom lip. */
+.hud-coin-value,
+.hud-level,
+.hud-streak,
+.booster-name,
+.booster-cost,
+.dialog h2,
+.dialog .wallet,
+.dialog-actions button,
+.coin-pop,
+.streak-pop,
+.map-title,
+.map-num,
+.final-title,
+.final-credit,
+.final-back {
+  text-shadow:
+    1.5px 0 var(--ol), -1.5px 0 var(--ol), 0 1.5px var(--ol), 0 -1.5px var(--ol),
+    1.1px 1.1px var(--ol), -1.1px 1.1px var(--ol), 1.1px -1.1px var(--ol), -1.1px -1.1px var(--ol),
+    0 2.5px 0 var(--ol);
+}
+
+/* HUD: two corner boxes of --hud-left-w / --hud-right-w by --hud-h (set from src/ui/frame.ts, whose
+   hudBoxes keep the board's cards clear of them). Nothing in the HUD may draw outside those boxes:
+   the glossy dark edges are inset shadows, so a 44 px control stays 44 px tall. */
+
+.hud {
+  position: relative;
+  z-index: 15;
+  grid-area: 1 / 1 / 3 / 3;
+  align-self: start;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  height: var(--hud-h);
+  pointer-events: none; /* the board runs under the HUD; only the back button takes taps */
+}
+
+.hud-side {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  padding: 4px;
+}
+
+/* The outer padding faces the screen edges only, so each box ends at its drawn content. */
+.hud-left {
+  max-width: var(--hud-left-w);
+  padding-right: 0;
+}
+
+.hud-right {
+  justify-content: flex-end;
+  gap: 5px;
+  max-width: var(--hud-right-w);
+  padding-left: 0;
+}
+
+.hud-back {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 9px 11px 11px 8px;
+  pointer-events: auto;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse 60% 38% at 50% 22%, rgba(255, 255, 255, 0.6), transparent 70%),
+    linear-gradient(180deg, #74c6ff, #2f7fe0 68%, #2463c4);
+  box-shadow: inset 0 -4px 0 rgba(12, 44, 120, 0.45), 0 2px 5px rgba(60, 20, 2, 0.45);
+}
+
+.hud-back svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Glossy cream pill tucked under the back button's right edge, like a badge. Sized for 5 digits
+   inside HUD_LEFT_W; wider totals clip rather than draw over the board. */
+.hud-coins {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  height: 36px;
+  margin-left: -12px;
+  padding: 0 6px 0 12px;
+  overflow: hidden;
+  border: 2.5px solid #fff;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(180deg, #fff6e2, #f6dcaa);
+  box-shadow: inset 0 -3px 0 rgba(176, 104, 40, 0.35), 0 2px 5px rgba(60, 20, 2, 0.4);
+  color: #ffd23f;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1;
+  --ol: #8a4a0f;
+}
+
+.hud-coins .coin {
+  width: 18px;
+  height: 18px;
+}
+
+.hud-level,
+.hud-streak,
+.map-title {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 12px;
+  border: 2.5px solid #fff;
+  border-radius: 999px;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.2), inset 0 2px 0 rgba(255, 255, 255, 0.35), 0 2px 5px rgba(60, 20, 2, 0.4);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.hud-level,
+.map-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(180deg, #b48bff, #7b4fe0 70%, #6a3fd0);
+  --ol: #3b1f86;
+}
+
+.hud-streak {
+  position: relative;
+  flex: none;
+  min-width: 48px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(180deg, #ff9fbe, #f0568a 70%, #d93f73);
+  --ol: #8c1840;
+}
+
+.hud-streak::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  box-shadow: 0 0 14px 4px var(--gold);
+  opacity: 0;
+  transition: opacity 250ms;
+  pointer-events: none;
+}
+
+.hud-streak.hot {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(180deg, #ffe27a, #ffb21f 70%, #f39a10);
+  --ol: #8a4a0f;
+}
+
+.hud-streak.hot::after {
+  opacity: 1;
+  animation: glow 1.2s ease-in-out infinite alternate;
+}
+
+/* Table and cards */
+
+.board {
+  grid-area: 1 / 1;
+  position: relative;
+}
+
+.table {
+  position: absolute;
+  inset: 0;
+}
+
+.card,
+.flyer {
+  perspective: 600px;
+}
+
+.card {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.card-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transform: rotateY(180deg);
+}
+
+.up > .card-inner {
+  transform: rotateY(0deg);
+}
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: var(--card-r);
+  box-shadow: var(--card-shadow);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.card-face.back {
+  transform: rotateY(180deg);
+}
+
+.card-face svg,
+.pile svg,
+.flyer svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Playable glow: a warm halo behind each exposed card that can go on the discard. Only its opacity
+   pulses; it is off while a dialog is open (.modal) and static under reduced motion. */
+.card.playable::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  z-index: -1;
+  border-radius: 14% / 10%;
+  background: rgba(255, 248, 190, 0.65);
+  box-shadow: 0 0 10px 4px rgba(255, 226, 110, 0.95);
+  pointer-events: none;
+  animation: glow 1.1s ease-in-out infinite alternate;
+}
+
+.level.modal .card.playable::before {
+  content: none;
+}
+
+/* Idle nudge: one gentle wiggle (transform only); the class is removed on animationend. */
+.card.nudge,
+.stock.nudge {
+  animation: nudge 700ms ease-in-out;
+}
+
+@keyframes nudge {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  15% {
+    transform: translateY(-4px) rotate(-6deg);
+  }
+  35% {
+    transform: translateY(-4px) rotate(5deg);
+  }
+  55% {
+    transform: translateY(-2px) rotate(-4deg);
+  }
+  75% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes nudge-fade {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* Bottom strip: stock (a stacked edge of backs) and discard at bottom centre, one strip-high card each;
+   the table props sit in its corners, behind the piles and out of the way of taps. */
+
+.bar {
+  grid-area: 2 / 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+}
+
+.prop {
+  position: absolute;
+  pointer-events: none;
+  filter: blur(1.4px);
+}
+
+.prop svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Bigger than the strip and cropped by the screen's bottom edge, like props on a table seen up close. */
+.prop-basket {
+  left: -10px;
+  bottom: -4px;
+  width: 153px;
+  height: 90px;
+}
+
+.prop-cushion {
+  right: 2px;
+  bottom: -16px;
+  width: 150px;
+  height: 90px;
+}
+
+.piles {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  /* room for the stacked edge, which grows to the left of the stock's top card */
+  padding-left: calc((10 - 1) * var(--stack-step));
+  --stack-step: 5px;
+}
+
+.pile {
+  position: relative;
+  width: calc((var(--strip-h) - 12px) / 1.4);
+  height: calc(var(--strip-h) - 12px);
+  padding: 0;
+  border: 0;
+  border-radius: var(--card-r);
+  background: none;
+}
+
+.discard {
+  box-shadow: var(--card-shadow);
+}
+
+.pile-card {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: var(--card-r);
+  box-shadow: -1px 1px 2px rgba(60, 20, 2, 0.35);
+  transform: translateX(calc(var(--k) * -1 * var(--stack-step)));
+}
+
+.pile-card[data-k="0"] {
+  box-shadow: var(--card-shadow);
+}
+
+.stock.empty {
+  border: 2px dashed rgba(255, 236, 210, 0.6);
+  background: rgba(74, 26, 4, 0.22);
+  box-shadow: inset 0 2px 6px rgba(60, 20, 2, 0.35);
+}
+
+.pile-count {
+  position: absolute;
+  z-index: 1;
+  top: -9px;
+  right: -10px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border: 2px solid #fff;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #ff6f8e, #e8335a 60%, #c91f47);
+  box-shadow: 0 2px 3px rgba(60, 20, 2, 0.4);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 22px;
+}
+
+/* First-timer hint (level 1): the corner cat with a speech bubble, in the strip's left corner. It ends
+   8 px before the stock's stacked edge (half the piles' width left of centre), so it never covers the
+   stock, the discard or any card slot, and it never takes taps. */
+.hint {
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  right: calc(50% + ((10 - 1) * 5px + 2 * (var(--strip-h) - 12px) / 1.4 + 16px) / 2 + 8px);
+  display: flex;
+  align-items: flex-end;
+  pointer-events: none;
+  animation: hint-in 450ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+.hint-cat {
+  flex: none;
+  width: 50px;
+  height: 50px;
+  filter: drop-shadow(0 2px 2px rgba(60, 20, 2, 0.45));
+}
+
+.hint-cat svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hint-bubble {
+  position: relative;
+  align-self: center;
+  min-width: 0;
+  margin: 0 0 0 10px;
+  padding: 5px 10px;
+  border: 2.5px solid #fff;
+  border-radius: 14px;
+  background: #fffdf7;
+  box-shadow: 0 2px 6px rgba(60, 20, 2, 0.4);
+  color: #1f2a55;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+/* The tail points down-left at the cat. */
+.hint-bubble::before {
+  content: "";
+  position: absolute;
+  left: -9px;
+  bottom: 8px;
+  width: 12px;
+  height: 12px;
+  border-left: 2.5px solid #fff;
+  border-bottom: 2.5px solid #fff;
+  background: #fffdf7;
+  transform: skewY(-35deg) rotate(20deg);
+}
+
+@keyframes hint-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+/* Booster column on the right edge, below the HUD's level/streak corner: round glossy buttons with an
+   icon and the name, and a price tag pill hanging under each. The whole stack is one button. */
+
+.boosters {
+  grid-area: 1 / 2 / 3 / 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px 8px;
+}
+
+.booster {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 64px;
+  padding: 0;
+  border: 0;
+  background: none;
+  --b1: #74c6ff;
+  --b2: #2f7fe0;
+  --b3: #2463c4;
+  --b-ol: #173f86;
+}
+
+.booster[data-booster="wild"] {
+  --b1: #ffa3d2;
+  --b2: #e64d9a;
+  --b3: #c93682;
+  --b-ol: #7a1650;
+}
+
+.booster[data-booster="addFive"] {
+  --b1: #9be86f;
+  --b2: #45b52f;
+  --b3: #34992a;
+  --b-ol: #1d5e12;
+}
+
+.booster-ball {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  padding-bottom: 4px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse 62% 36% at 50% 20%, rgba(255, 255, 255, 0.6), transparent 70%),
+    linear-gradient(180deg, var(--b1), var(--b2) 68%, var(--b3));
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.22), 0 3px 6px rgba(60, 20, 2, 0.45);
+  color: #fff;
+}
+
+.booster-ball svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
+.booster-name {
+  margin-top: 1px;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  --ol: var(--b-ol);
+}
+
+.booster-cost {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  margin-top: -9px;
+  padding: 0 8px 0 3px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffe58a, #ffc02e 70%, #f5a916);
+  box-shadow: inset 0 -2px 0 rgba(160, 90, 10, 0.35), 0 2px 3px rgba(60, 20, 2, 0.4);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  --ol: #8a4a0f;
+}
+
+.booster-cost .coin {
+  width: 13px;
+  height: 13px;
+}
+
+/* Disabled: grey and desaturated, but the name and price stay dark and readable (contrast > 5:1). */
+.booster:disabled {
+  --b1: #ebe6e0;
+  --b2: #c3bbb2;
+  --b3: #aca398;
+}
+
+.booster:disabled .booster-ball,
+.booster:disabled .booster-cost {
+  color: #3f3832;
+}
+
+.booster:disabled .booster-name,
+.booster:disabled .booster-cost {
+  text-shadow: none;
+}
+
+.booster:disabled .booster-cost {
+  background: linear-gradient(180deg, #efebe6, #cfc8c0);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.12);
+}
+
+.booster:disabled svg,
+.booster:disabled .coin {
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+
+/* Effects layer */
+
+.fx {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Flights scale and squash around the bottom centre, so the landing squash sits on the discard. */
+.flyer {
+  position: absolute;
+  transform-origin: 50% 100%;
+}
+
+.sparkle {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+}
+
+.sparkle.big {
+  width: 30px;
+  height: 30px;
+}
+
+.confetti {
+  position: absolute;
+  top: -40px;
+  width: 24px;
+  height: 24px;
+}
+
+.sparkle svg,
+.confetti svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Coin popups: "+1" from each cleared card, and the bigger "+N streak!" on streak bonuses. Centred on
+   their point by a static translate that the float animation repeats. */
+.coin-pop,
+.streak-pop {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  font-weight: 900;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+}
+
+.coin-pop {
+  color: #ffd23f;
+  font-size: 22px;
+  --ol: #8a4a0f;
+}
+
+.coin-pop .coin {
+  width: 20px;
+  height: 20px;
+}
+
+.streak-pop {
+  z-index: 1;
+  color: #fff;
+  font-size: 32px;
+  --ol: #c2185b;
+}
+
+/* Dialogs: landscape, compact enough for 360 px of height. The backdrop scrolls as a safety net, and
+   the dialog centres with auto margins so an overflowing dialog can still scroll to its top. */
+
+.dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(14px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background: radial-gradient(ellipse at 50% 45%, rgba(60, 22, 4, 0.45), rgba(30, 10, 2, 0.75));
+  animation: fade-in 200ms ease-out;
+}
+
+.dialog {
+  position: relative;
+  flex: none;
+  width: min(100%, 470px);
+  margin: auto;
+  padding: 14px 20px 18px;
+  border: 4px solid #fff;
+  border-radius: 26px;
+  background: radial-gradient(ellipse 90% 70% at 50% 0%, #fffdf8, #fff2da 60%, #ffe3b8);
+  box-shadow: inset 0 -5px 0 rgba(200, 130, 60, 0.25), 0 5px 0 #c77a35, 0 14px 30px rgba(30, 10, 2, 0.5);
+  color: #4a3a2e;
+  text-align: center;
+  animation: dialog-in 250ms ease-out;
+}
+
+.dialog h2 {
+  margin: 0 0 8px;
+  color: #fff;
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1.1;
+  --ol: #d2601d;
+}
+
+.dialog p {
+  margin: 0 0 14px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+/* Win: the cat, title and stars on the left; coin lines, wallet and actions on the right. */
+.dialog.win {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  width: min(100%, 560px);
+  padding: 14px 20px 16px;
+}
+
+.win-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.win-cat {
+  width: 96px;
+  height: 96px;
+  filter: drop-shadow(0 3px 3px rgba(120, 60, 10, 0.35));
+  animation:
+    cat-pop 500ms cubic-bezier(0.3, 1.6, 0.5, 1) both,
+    cat-cheer 480ms ease-in-out 500ms 6 alternate;
+}
+
+/* The cheering cat waves both raised paws around its shoulders a few times, then rests. */
+.win-cat .cheer-arm {
+  transform-box: view-box;
+  animation: arm-wave 260ms ease-in-out 450ms 12 alternate;
+}
+
+.win-cat .cheer-arm-l {
+  transform-origin: 38px 78px;
+  --wave: -14deg;
+}
+
+.win-cat .cheer-arm-r {
+  transform-origin: 62px 78px;
+  --wave: 14deg;
+}
+
+.win-cat svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.win-hero h2 {
+  margin: 2px 0 4px;
+  white-space: nowrap;
+}
+
+.stars {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  font-size: 40px;
+  line-height: 1;
+}
+
+.star {
+  display: inline-block;
+  color: rgba(140, 90, 40, 0.25);
+}
+
+.star.earned {
+  color: #ffc93a;
+  text-shadow: 0 2px 0 #c7761a, 0 0 10px rgba(255, 200, 60, 0.6);
+  animation: star-pop 400ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  animation-delay: calc(250ms + var(--i) * 220ms);
+}
+
+.breakdown {
+  margin: 0 0 8px;
+  padding: 4px 12px;
+  border-radius: 14px;
+  background: rgba(200, 130, 60, 0.14);
+  list-style: none;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.breakdown li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px dashed rgba(150, 90, 40, 0.3);
+}
+
+.breakdown li:last-child {
+  border-bottom: 0;
+}
+
+.dialog .wallet {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  color: #ffd23f;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.1;
+  --ol: #8a4a0f;
+}
+
+.dialog .wallet .coin {
+  width: 24px;
+  height: 24px;
+}
+
+/* Glossy pill buttons: gradient, top highlight, dark bottom edge. Blue by default. */
+.dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.dialog-actions button {
+  min-height: 46px;
+  padding: 0 10px 3px;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 14%, rgba(255, 255, 255, 0.55), transparent 70%),
+    linear-gradient(180deg, var(--b1), var(--b2) 68%, var(--b3));
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.2), 0 3px 0 var(--b-edge), 0 5px 8px rgba(60, 20, 2, 0.35);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.1;
+  --b1: #74c6ff;
+  --b2: #2f7fe0;
+  --b3: #2463c4;
+  --b-edge: #1d4f9e;
+  --ol: #173f86;
+}
+
+.dialog-actions .primary {
+  --b1: #9be86f;
+  --b2: #45b52f;
+  --b3: #34992a;
+  --b-edge: #22701a;
+  --ol: #1d5e12;
+}
+
+.dialog-actions .boost {
+  --b1: #ffa3d2;
+  --b2: #e64d9a;
+  --b3: #c93682;
+  --b-edge: #8f1f5c;
+  --ol: #7a1650;
+}
+
+.win .dialog-actions .primary {
+  grid-column: 1 / -1;
+}
+
+/* Disabled: grey, but the label stays dark and readable. */
+.dialog-actions button:disabled {
+  --b1: #ebe6e0;
+  --b2: #c3bbb2;
+  --b3: #aca398;
+  --b-edge: #8a8177;
+  color: #3f3832;
+  text-shadow: none;
+}
+
+@keyframes glow {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+@keyframes cat-pop {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.4);
+  }
+}
+
+@keyframes star-pop {
+  from {
+    opacity: 0;
+    transform: scale(0) rotate(-30deg);
+  }
+}
+
+@keyframes cat-cheer {
+  to {
+    transform: translateY(-7px) scale(1.04, 0.97);
+  }
+}
+
+@keyframes arm-wave {
+  to {
+    transform: rotate(var(--wave));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .level *,
+  .level *::before,
+  .level *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+    animation-delay: 0ms !important;
+  }
+
+  .hud-streak.hot::after {
+    animation: none;
+  }
+
+  /* A static glow, and a brief fade instead of the wiggle (this beats the 0 ms rule above). */
+  .level .card.playable::before {
+    animation: none;
+    opacity: 0.85;
+  }
+
+  .level .card.nudge,
+  .level .stock.nudge {
+    animation: nudge-fade 900ms ease-in-out !important;
+  }
+
+  /* Fades instead of movement: the dialog, the hint, and the win cat and stars (still one by one). */
+  .level .dialog,
+  .level .hint,
+  .level .win-cat {
+    animation: fade-in 250ms ease-out both !important;
+  }
+
+  .level .win-cat .cheer-arm {
+    animation: none !important;
+  }
+
+  .level .star.earned {
+    animation: fade-in 300ms ease-out both !important;
+    animation-delay: calc(250ms + var(--i) * 220ms) !important;
+  }
+}
+
+/* ---------- Map and final screens ---------- */
+
+/* Night sky over rooftops: the body's gradient and twinkling stars show through, with a violet-pink
+   dusk glow at the horizon and the moon and sparkles from nightSkySvg on top. */
+.map,
+.final {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  font-family: var(--font-round);
+}
+
+:where(.map button, .final button) {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.map button:focus-visible,
+.final button:focus-visible {
+  outline: 3px solid var(--pink);
+  outline-offset: 2px;
+}
+
+.map-sky {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 38%, rgba(110, 70, 200, 0.3) 76%, rgba(240, 120, 160, 0.38) 100%);
+}
+
+.map-sky svg,
+.map-town svg,
+.map-ball svg,
+.map-cat svg,
+.map-heart svg,
+.final-cat svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The trail scrolls sideways under the fixed sky. The track sits inside the safe-area insets, while
+   the rooftops run edge to edge. */
+.map-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.map-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.map-path {
+  position: relative;
+  width: calc(var(--track-w) + env(safe-area-inset-left) + env(safe-area-inset-right));
+  height: 100%;
+}
+
+.map-town {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 150px; /* TOWN_H in catArt.ts */
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.map-track {
+  position: absolute;
+  top: env(safe-area-inset-top);
+  bottom: env(safe-area-inset-bottom);
+  left: env(safe-area-inset-left);
+  width: var(--track-w);
+}
+
+.map-trail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* Coin pill top-left (the level screen's pill, without the back button) and the title top-right. */
+.map-hud {
+  position: absolute;
+  top: env(safe-area-inset-top);
+  right: env(safe-area-inset-right);
+  left: env(safe-area-inset-left);
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 4px 6px;
+  pointer-events: none;
+}
+
+.hud-coins.map-coins {
+  gap: 4px;
+  margin-left: 0;
+  padding: 0 11px 0 6px;
+  font-size: 16px;
+}
+
+.map-title {
+  margin: 0;
+  padding: 0 16px;
+  font-size: 18px;
+}
+
+/* Glossy yarn-ball markers: a soft shadow on the roofs, a darker bottom edge, an outlined number. */
+.map-node {
+  position: absolute;
+  z-index: 1;
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+}
+
+.map-node::before {
+  content: "";
+  position: absolute;
+  right: 12px;
+  bottom: -2px;
+  left: 8px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(8, 10, 40, 0.5);
+  filter: blur(2px);
+}
+
+.map-node:disabled {
+  cursor: default;
+}
+
+.map-ball {
+  position: absolute;
+  inset: 0;
+  filter: drop-shadow(0 2.5px 0 #a8356a);
+}
+
+.map-node:disabled .map-ball {
+  opacity: 0.8;
+  filter: grayscale(1) brightness(0.7) drop-shadow(0 2.5px 0 #2a2d55);
+}
+
+.map-node.current .map-ball {
+  filter: drop-shadow(0 2.5px 0 #a8356a) drop-shadow(0 0 7px #ffd84a) drop-shadow(0 0 3px #fff3c4);
+  animation: node-pulse 1.1s ease-in-out infinite alternate;
+}
+
+.map-num {
+  position: absolute;
+  inset: 0 4px 3px 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+  --ol: #a8255f;
+}
+
+.map-node:disabled .map-num {
+  color: #d9d7ea;
+  --ol: #34375e;
+}
+
+.map-stars {
+  position: absolute;
+  top: calc(100% - 7px);
+  left: 50%;
+  display: flex;
+  padding: 1px 5px 0;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #5a5fb4, #2e3178 70%, #262868);
+  box-shadow: 0 2px 3px rgba(8, 10, 40, 0.5);
+  font-size: 13px;
+  line-height: 16px;
+  transform: translateX(-50%);
+}
+
+.map-star {
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.map-star.earned {
+  color: #ffc93a;
+  text-shadow: 0 1px 0 #a8631a;
+}
+
+.map-cat {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  width: 50px;
+  height: 50px;
+  margin-left: -27px;
+  filter: drop-shadow(0 3px 3px rgba(8, 10, 40, 0.55));
+  pointer-events: none;
+  animation: cat-bob 1.1s ease-in-out infinite alternate;
+}
+
+/* The ♥ after the last level: a glossy pink ball button with a white heart. */
+.map-heart {
+  position: absolute;
+  z-index: 1;
+  width: 60px;
+  height: 60px;
+  margin: -30px 0 0 -30px;
+  padding: 14px 13px 11px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse 60% 38% at 50% 22%, rgba(255, 255, 255, 0.6), transparent 70%),
+    linear-gradient(180deg, #ffa3d2, #e64d9a 68%, #c93682);
+  box-shadow: inset 0 -4px 0 rgba(122, 22, 80, 0.45), 0 3px 0 #8f1f5c, 0 0 18px 4px rgba(255, 160, 200, 0.5);
+  animation: heart-beat 1.2s ease-in-out infinite;
+}
+
+.map-heart svg {
+  fill: #fff;
+}
+
+/* Final screen: the cheering cat beside the thank-you note, over the same sky and rooftops. */
+.final {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 28px;
+  padding: max(12px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+  text-align: center;
+}
+
+.final .map-town {
+  height: 110px;
+}
+
+.final-cat {
+  position: relative;
+  flex: none;
+  width: 150px;
+  height: 150px;
+  filter: drop-shadow(0 4px 6px rgba(8, 10, 40, 0.55));
+  animation:
+    cat-pop 600ms cubic-bezier(0.3, 1.6, 0.5, 1) both,
+    cat-cheer 480ms ease-in-out 600ms 8 alternate;
+}
+
+.final-cat .cheer-arm {
+  transform-box: view-box;
+  animation: arm-wave 260ms ease-in-out 550ms 16 alternate;
+}
+
+.final-cat .cheer-arm-l {
+  transform-origin: 38px 78px;
+  --wave: -14deg;
+}
+
+.final-cat .cheer-arm-r {
+  transform-origin: 62px 78px;
+  --wave: 14deg;
+}
+
+.final-note {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 360px;
+}
+
+.final-title {
+  margin: 0;
+  color: #fff;
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1.12;
+  text-wrap: balance;
+  --ol: #3b1f86;
+}
+
+.final-credit {
+  margin: 0;
+  color: #ffc2da;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.2;
+  --ol: #8c1840;
+}
+
+.final-back {
+  min-width: 190px;
+  min-height: 48px;
+  margin-top: 8px;
+  padding: 0 22px 3px;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 14%, rgba(255, 255, 255, 0.55), transparent 70%),
+    linear-gradient(180deg, #9be86f, #45b52f 68%, #34992a);
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.2), 0 3px 0 #22701a, 0 5px 8px rgba(8, 10, 40, 0.45);
+  color: #fff;
+  font-size: 19px;
+  font-weight: 900;
+  line-height: 1.1;
+  --ol: #1d5e12;
+}
+
+@keyframes node-pulse {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes cat-bob {
+  to {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes heart-beat {
+  0%,
+  60%,
+  100% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-node.current .map-ball,
+  .map-cat,
+  .map-heart,
+  .final-cat .cheer-arm {
+    animation: none;
+  }
+
+  .final-cat {
+    animation: fade-in 250ms ease-out both;
+  }
+}
+
+/* ---------- Portrait overlay: the game is landscape-only ---------- */
+
+.rotate {
+  display: none;
+}
+
+@media (orientation: portrait) {
+  .rotate {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    background: linear-gradient(180deg, var(--night) 0%, var(--night-2) 100%);
+    text-align: center;
+  }
+}
+
+.rotate-cat {
+  width: 140px;
+  height: 140px;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45));
+}
+
+.rotate-cat svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.rotate-text {
+  margin: 0;
+  color: var(--gold);
+  font-size: 26px;
+  font-weight: 800;
+}
