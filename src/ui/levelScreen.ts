@@ -24,7 +24,7 @@ import { createHud } from './hud';
 export interface LevelDeps {
   getSave(): SaveV1; // reads the stored save fresh on every call
   setSave(save: SaveV1): void; // caller persists to localStorage
-  exit(to: 'map' | 'next' | 'final'): void;
+  exit(to: 'map' | 'next' | 'final'): void; // may unmount later (after a history back), not at once
 }
 
 type Booster = 'undo' | 'wild' | 'addFive';
@@ -55,10 +55,7 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
   const screen = document.createElement('div');
   screen.className = 'level';
   applyFrame(screen);
-  const hud = createHud(level.id, state.coins, () => {
-    persistCoins();
-    deps.exit('map');
-  });
+  const hud = createHud(level.id, state.coins, () => deps.exit('map'));
   const area = document.createElement('main');
   area.className = 'board';
   const bar = document.createElement('footer');
@@ -111,7 +108,7 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
 
   /**
    * Merges this session's coin delta (and `won`, if given) into the stored save, then moves the
-   * baseline to the session wallet so repeated persists (hidden, pagehide, Back) add nothing twice.
+   * baseline to the session wallet so repeated persists (hidden, pagehide, leaving) add nothing twice.
    * A won state's coins never change, so persists after a win add 0 and keep the 3-star bonus.
    */
   function persist(won?: SessionWin): { save: SaveV1; bonus: number } {
@@ -248,10 +245,7 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
               persistCoins();
               redeal();
             },
-            map: () => {
-              persistCoins();
-              deps.exit('map');
-            },
+            map: () => deps.exit('map'),
           },
         ),
       };
@@ -332,8 +326,10 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
   settle();
   armNudge();
 
+  // Leaving by any path (in-game back, a dialog's Map, system Back, next level) saves the coins once, here.
   return () => {
     if (!mounted) return;
+    persistCoins();
     mounted = false;
     clearTimeout(idleTimer);
     document.removeEventListener('visibilitychange', onVisibility);
