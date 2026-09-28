@@ -22,12 +22,25 @@ export const HUD_LEFT_W = 124;
  */
 export const HUD_RIGHT_W = 162;
 
-/** Stock and discard card width over the board's card width, while the board keeps roomy cards... */
+/** Stock and discard card width over the board's card width, while the board card meets roomyCardW... */
 export const PILE_RATIO = 1.1;
-/** ...and never less than a board card, when the 1.1x piles would leave the board cards narrower than... */
+/** ...and never less than a board card, where the 1.1x piles would push it under that floor. */
 export const PILE_RATIO_MIN = 1;
-/** ...this width, CSS px (the T11 floor at 800x360). */
-export const ROOMY_CARD_W = 60;
+/** The original T11 board-card floors, [frame width, px], by increasing width (before any relaxation). */
+export const T11_FLOORS = [
+  [640, 52],
+  [800, 60],
+] as const;
+
+/**
+ * Board-card floor the 1.1x piles must keep for a frame `w` px wide: the T11 floor, linear in the width
+ * between the T11 points and held at the nearer one outside them (52 px up to 640, 60 px from 800).
+ */
+export function roomyCardW(w: number): number {
+  const [[w0, px0], [w1, px1]] = T11_FLOORS;
+  return px0 + ((px1 - px0) * Math.min(Math.max(w - w0, 0), w1 - w0)) / (w1 - w0);
+}
+
 /** Gap between the piles' bottom edge and the bottom of the frame (above the safe-area inset), CSS px. */
 export const PILE_MARGIN_B = 8;
 /** The stock's count badge rises this far above the piles; the strip keeps that room over them, CSS px. */
@@ -91,7 +104,7 @@ export function levelFrame(w: number, h: number, layout: Pick<Layout, 'width' | 
     return { areaW, areaH, stripH: lo, pileW: pileH / CARD_ASPECT, pileH, ratio, board: fitBoard(areaW, areaH, layout, boxes) };
   };
   const roomy = frameFor(PILE_RATIO);
-  return roomy.board.cardW >= ROOMY_CARD_W ? roomy : frameFor(PILE_RATIO_MIN);
+  return roomy.board.cardW >= roomyCardW(w) ? roomy : frameFor(PILE_RATIO_MIN);
 }
 
 /** The HUD corner boxes in board-area coordinates; the right one starts inside the booster column. */

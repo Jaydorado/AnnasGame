@@ -9,10 +9,10 @@ import {
   PILE_MARGIN_B,
   PILE_RATIO,
   PILE_RATIO_MIN,
-  ROOMY_CARD_W,
   STACK_W,
   hudBoxes,
   levelFrame,
+  roomyCardW,
 } from './frame';
 
 const EPS = 1e-9;
@@ -107,32 +107,41 @@ describe('fitBoard around the HUD corners', () => {
 });
 
 describe('levelFrame: stock and discard in the bottom strip', () => {
-  it.each(VIEWPORTS)('at %ix%i the piles are at least a board card wide, 1.1x while the board stays roomy', (vw, vh) => {
+  it.each(VIEWPORTS)('at %ix%i the piles are at least a board card wide, 1.1x while the viewport floor holds', (vw, vh) => {
     for (const layout of layouts) {
       const f = levelFrame(vw, vh, layout);
       const card = f.board.cardW;
       expect(f.pileW, layout.id).toBeGreaterThanOrEqual(card);
       expect(f.pileW, layout.id).toBeGreaterThanOrEqual(f.ratio * card - EPS);
       expect(f.pileH).toBeCloseTo(f.pileW * CARD_ASPECT, 9);
-      // 1.1x only where the board keeps roomy cards with it; otherwise 1.0x.
-      expect([PILE_RATIO, PILE_RATIO_MIN], layout.id).toContain(f.ratio);
-      if (f.ratio === PILE_RATIO) expect(card, layout.id).toBeGreaterThanOrEqual(ROOMY_CARD_W);
+      if (f.ratio === PILE_RATIO) expect(card, layout.id).toBeGreaterThanOrEqual(roomyCardW(vw));
     }
   });
 
-  it('at 915x412 every layout gets the 1.1x piles', () => {
-    for (const layout of layouts) expect(levelFrame(915, 412, layout).ratio, layout.id).toBe(PILE_RATIO);
+  // Only diamond at 800x360 drops to 1.0x: with 1.1x piles its cards would be 56.9 px, under the 60 px floor.
+  it.each([
+    [800, 360, ['diamond']],
+    [640, 360, []],
+    [915, 412, []],
+  ] as const)('at %ix%i the layouts on 1.0x piles are %j; every other layout gets 1.1x', (vw, vh, narrow) => {
+    for (const layout of layouts) {
+      const want = (narrow as readonly string[]).includes(layout.id) ? PILE_RATIO_MIN : PILE_RATIO;
+      expect(levelFrame(vw, vh, layout).ratio, layout.id).toBe(want);
+    }
+  });
+
+  it('at 640x360 threePeaks keeps its width-capped cards under 1.1x piles', () => {
+    const f = levelFrame(640, 360, LAYOUTS.threePeaks);
+    expect(f.board.cardW).toBeCloseTo(fitBoard(f.areaW, 10_000, LAYOUTS.threePeaks).cardW, 9);
+    expect(f.pileW).toBeGreaterThanOrEqual(PILE_RATIO * f.board.cardW);
   });
 
   it.each(VIEWPORTS)('at %ix%i the piles, stacked edge and badge sit fully on screen, 8 px above the bottom', (vw, vh) => {
     for (const layout of layouts) {
       const f = levelFrame(vw, vh, layout);
       expect(f.areaH + f.stripH).toBeCloseTo(vh, 9);
-      // Vertical: the badge rises from the strip's top edge, the piles sit on the bottom margin.
-      const stripTop = f.areaH;
-      const pileTop = stripTop + BADGE_RISE;
-      const pileBottom = pileTop + f.pileH;
-      expect(pileTop - BADGE_RISE, layout.id).toBeGreaterThanOrEqual(stripTop - EPS);
+      // Vertical: the badge rises into the strip's top BADGE_RISE, the piles sit on the bottom margin.
+      const pileBottom = f.areaH + BADGE_RISE + f.pileH;
       expect(vh - pileBottom, layout.id).toBeGreaterThanOrEqual(PILE_MARGIN_B - EPS);
       // Horizontal: stacked edge + stock + gap + discard, centred under the board area.
       const rowW = STACK_W + f.pileW + PILE_GAP + f.pileW;
