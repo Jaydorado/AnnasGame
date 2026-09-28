@@ -7,6 +7,7 @@ import '../styles.css';
 import { fullDeck, type Card, type Suit } from '../../core/cards';
 import { cardBackSvg, cardFaceSvg, wildCardSvg } from './cardArt';
 import { catHeadSvg, catPortraitSvg, fishSvg, heartSvg, pawSvg, yarnBallSvg } from './catArt';
+import { BADGE_OVERHANG, BADGE_RISE, PILE_GAP, STACK_MAX, STACK_STEP, STACK_W } from '../frame';
 import { basketCatSvg, cushionSvg } from './tableArt';
 
 const PLAY_W = 64;
@@ -41,13 +42,16 @@ function peak(step: number): string {
   return `<div class="peak" style="width:${4 * PLAY_W}px;height:${3 * step * h + h}px">${cards.join('')}</div>`;
 }
 
-/** The level screen's bottom strip markup: stacked stock (with `left` cards) and the discard. */
+/** The level screen's bottom strip markup at play size: stacked stock (with `left` cards) and the discard. */
 function strip(left: number, top: string): string {
-  const layers = Array.from({ length: 10 }, (_, i) => 9 - i)
-    .map((k) => `<span class="pile-card" data-k="${k}" style="--k:${k}"${k >= Math.min(left, 10) ? ' hidden' : ''}>${cardBackSvg()}</span>`)
+  const layers = Array.from({ length: STACK_MAX }, (_, i) => STACK_MAX - 1 - i)
+    .map((k) => `<span class="pile-card" data-k="${k}" style="--k:${k}"${k >= Math.min(left, STACK_MAX) ? ' hidden' : ''}>${cardBackSvg()}</span>`)
     .join('');
+  const vars =
+    `--pile-w:${PLAY_W}px;--pile-h:${PLAY_W * 1.4}px;--pile-gap:${PILE_GAP}px;--stack-step:${STACK_STEP}px;` +
+    `--stack-w:${STACK_W}px;--badge-rise:${BADGE_RISE}px;--badge-overhang:${BADGE_OVERHANG}px`;
   return (
-    `<div class="piles" style="--strip-h:88px"><span class="pile stock${left === 0 ? ' empty' : ''}">${layers}` +
+    `<div class="piles" style="${vars}"><span class="pile stock${left === 0 ? ' empty' : ''}">${layers}` +
     `<span class="pile-count">${left}</span></span><span class="pile discard">${top}</span></div>`
   );
 }

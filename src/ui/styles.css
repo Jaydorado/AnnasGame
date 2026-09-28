@@ -88,8 +88,8 @@ body::after {
 
 /* ---------- Level screen ---------- */
 
-/* The landscape frame: --strip-h and --booster-w are set from src/ui/frame.ts (applyFrame), which
-   also feeds the board-fit math. The HUD overlays the top corners instead of taking a row. */
+/* The landscape frame: --strip-h, --booster-w and the pile sizes are set from src/ui/frame.ts
+   (applyFrame), which also feeds the board-fit math. The HUD overlays the top corners instead of taking a row. */
 .level {
   position: fixed;
   inset: 0;
@@ -427,16 +427,17 @@ body::after {
   }
 }
 
-/* Bottom strip: stock (a stacked edge of backs) and discard at bottom centre, one strip-high card each;
-   the table props sit in its corners, behind the piles and out of the way of taps. */
+/* Bottom strip: stock (a stacked edge of backs) and discard at bottom centre, sized in src/ui/frame.ts
+   (levelFrame) to at least a board card; the strip keeps --badge-rise above them for the count badge
+   and --pile-margin-b below. The table props sit in its corners, behind the piles and out of the way of taps. */
 
 .bar {
   grid-area: 2 / 1;
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  padding: 6px 10px;
+  padding: var(--badge-rise) 10px var(--pile-margin-b);
 }
 
 .prop {
@@ -470,16 +471,15 @@ body::after {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--pile-gap);
   /* room for the stacked edge, which grows to the left of the stock's top card */
-  padding-left: calc((10 - 1) * var(--stack-step));
-  --stack-step: 5px;
+  padding-left: var(--stack-w);
 }
 
 .pile {
   position: relative;
-  width: calc((var(--strip-h) - 12px) / 1.4);
-  height: calc(var(--strip-h) - 12px);
+  width: var(--pile-w);
+  height: var(--pile-h);
   padding: 0;
   border: 0;
   border-radius: var(--card-r);
@@ -512,8 +512,8 @@ body::after {
 .pile-count {
   position: absolute;
   z-index: 1;
-  top: -9px;
-  right: -10px;
+  top: calc(-1 * var(--badge-rise));
+  right: calc(-1 * var(--badge-overhang));
   min-width: 26px;
   height: 26px;
   padding: 0 6px;
@@ -536,7 +536,7 @@ body::after {
   top: 4px;
   bottom: 4px;
   left: 4px;
-  right: calc(50% + ((10 - 1) * 5px + 2 * (var(--strip-h) - 12px) / 1.4 + 16px) / 2 + 8px);
+  right: calc(50% + (var(--stack-w) + 2 * var(--pile-w) + var(--pile-gap)) / 2 + 8px);
   display: flex;
   align-items: flex-end;
   pointer-events: none;
