@@ -198,9 +198,14 @@ export function flyCard(layer: HTMLElement, from: DOMRect, to: DOMRect, face: st
   );
 }
 
+/** Each board card's latest flip, so an older flip settling does not end a newer one's 3D mode. */
+const flips = new WeakMap<HTMLElement, Animation>();
+
 /**
- * 3D flip of a board card whose exposure just changed (its `.up` class is already set). Uncovered
- * cards flip up a beat after the covering card leaves. Reduced motion: the card fades in instead.
+ * 3D flip of a board card whose exposure just changed (its `.up` class is already set). Cards are flat
+ * at rest (CSS shows the face `.up` picks); `.flipping` makes the card a 3D scene only while this runs,
+ * including the delay, where `fill: 'backwards'` holds the old side. Uncovered cards flip up a beat after
+ * the covering card leaves. Reduced motion: the card fades in instead, with no 3D.
  */
 export function flipCard(card: HTMLElement, up: boolean): void {
   if (reducedMotion()) {
@@ -210,7 +215,8 @@ export function flipCard(card: HTMLElement, up: boolean): void {
   const inner = card.firstElementChild as HTMLElement;
   const from = up ? 180 : 0;
   const to = up ? 0 : 180;
-  inner.animate(
+  card.classList.add('flipping');
+  const anim = inner.animate(
     [
       { transform: `rotateY(${from}deg) scale(1)` },
       { transform: `rotateY(90deg) scale(1.12)`, offset: 0.5 },
@@ -218,6 +224,11 @@ export function flipCard(card: HTMLElement, up: boolean): void {
     ],
     { duration: FLIP_MS, delay: up ? 90 : 0, easing: 'ease-in-out', fill: 'backwards' },
   );
+  flips.set(card, anim);
+  const done = (): void => {
+    if (flips.get(card) === anim) card.classList.remove('flipping');
+  };
+  anim.finished.then(done, done);
 }
 
 /** A floating label at (x, y): rises and fades (only fades under reduced motion). */

@@ -335,6 +335,7 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
   refresh(false);
   settle();
   armNudge();
+  document.documentElement.classList.add('in-level'); // stops the star twinkle behind the table (CSS)
 
   // Leaving by any path (in-game back, a dialog's Map, system Back, next level) saves the coins once, here.
   return () => {
@@ -342,6 +343,7 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
     persistCoins();
     mounted = false;
     clearTimeout(idleTimer);
+    document.documentElement.classList.remove('in-level');
     document.removeEventListener('visibilitychange', onVisibility);
     document.removeEventListener('pointerdown', armNudge, true);
     document.removeEventListener('keydown', armNudge, true);
