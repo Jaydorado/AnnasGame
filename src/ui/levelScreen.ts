@@ -17,7 +17,7 @@ import { basketCatSvg, cushionSvg } from './art/tableArt';
 import { cardLabel, createBoard, topSvg } from './board';
 import { showStuckDialog, showWinDialog, type WinInfo } from './dialogs';
 import { coinPop, confetti, fadeIn, flyCard, playCoins, pop, reducedMotion, sparkleBurst, streakPop, wiggle } from './fx';
-import { applyFrame } from './frame';
+import { STACK_MAX, applyFrame, levelFrame, type LevelFrame } from './frame';
 import { hintSeen, hintText, markHintSeen } from './hint';
 import { createHud } from './hud';
 
@@ -35,8 +35,6 @@ const BOOSTERS: readonly { readonly type: Booster; readonly name: string; readon
   { type: 'addFive', name: `+${ECON.addFiveCount}`, cost: ECON.addFiveCost },
 ];
 
-/** Most backs drawn in the stock's stacked edge. */
-const STACK_MAX = 10;
 /** Idle time before a playable card (or the stock) wiggles; a UI timer, not a gameplay one. */
 const NUDGE_MS = 5000;
 
@@ -54,7 +52,6 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
 
   const screen = document.createElement('div');
   screen.className = 'level';
-  applyFrame(screen);
   const hud = createHud(level.id, state.coins, () => deps.exit('map'));
   const area = document.createElement('main');
   area.className = 'board';
@@ -102,7 +99,7 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
   const onTap = (slot: number, el: HTMLButtonElement): void => {
     if (state.table[slot]) act({ type: 'play', slot }, el);
   };
-  let board = createBoard(area, state.layout, state.table, onTap);
+  let board = createBoard(area, state.layout, state.table, resize().board, onTap);
   stockEl.addEventListener('click', () => act({ type: 'draw' }, stockEl));
   for (const b of boosterEls) b.addEventListener('click', () => act({ type: b.dataset.booster as Booster }, b));
 
@@ -300,15 +297,28 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
     state = deal(level, deps.getSave().coins);
     baseline = state.coins;
     board.destroy();
-    board = createBoard(area, state.layout, state.table, onTap);
+    board = createBoard(area, state.layout, state.table, resize().board, onTap);
     refresh(false);
     settle();
+  }
+
+  /**
+   * Sizes the strip, the piles and the board for the level screen's current size (safe-area insets,
+   * which the CSS pads off, excluded) and sets the frame's CSS custom properties.
+   */
+  function resize(): LevelFrame {
+    const cs = getComputedStyle(screen);
+    const w = screen.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const h = screen.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const frame = levelFrame(w, h, state.layout);
+    applyFrame(screen, frame);
+    return frame;
   }
 
   const onVisibility = (): void => {
     if (document.visibilityState === 'hidden') persistCoins();
   };
-  const onResize = (): void => board.fit();
+  const onResize = (): void => board.fit(resize().board);
   document.addEventListener('visibilitychange', onVisibility);
   // Reload/close: Chromium can fire the unload visibilitychange while still reporting "visible".
   window.addEventListener('pagehide', persistCoins);
@@ -325,6 +335,7 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
   refresh(false);
   settle();
   armNudge();
+  document.documentElement.classList.add('in-level'); // stops the star twinkle behind the table (CSS)
 
   // Leaving by any path (in-game back, a dialog's Map, system Back, next level) saves the coins once, here.
   return () => {
@@ -332,6 +343,7 @@ export function mountLevel(root: HTMLElement, level: LevelDef, deps: LevelDeps):
     persistCoins();
     mounted = false;
     clearTimeout(idleTimer);
+    document.documentElement.classList.remove('in-level');
     document.removeEventListener('visibilitychange', onVisibility);
     document.removeEventListener('pointerdown', armNudge, true);
     document.removeEventListener('keydown', armNudge, true);

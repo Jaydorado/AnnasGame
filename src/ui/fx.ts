@@ -9,9 +9,31 @@ import { fishSvg, heartSvg, pawShapes, pawSvg } from './art/catArt';
 
 const POP_MS = 250;
 const WIGGLE_MS = 300;
-const FLY_MS = 320;
 const FLIP_MS = 380;
 const FADE_MS = 220;
+
+/** A tapped table card first pops in place to this scale... */
+export const POP_SCALE = 1.15;
+/** ...over this long, ms; then it flies. */
+export const POP_IN_MS = 80;
+/** A table card's whole flight to the discard (pop, arc, landing), ms. */
+export const PLAY_FLY_MS = 450;
+/** A drawn card's flight from the stock to the discard (no pop), ms. */
+export const DRAW_FLY_MS = 350;
+/** The landing squash and rebound at the end of every flight, ms. */
+export const SQUASH_MS = 80;
+/** On landing the card widens and flattens by this fraction, then rebounds a third as far. */
+export const SQUASH = 0.14;
+/** The arc's rise over the straight line at mid-flight: at least ARC_LIFT_MIN, more for longer flights... */
+export const ARC_LIFT_MIN = 60;
+/** ...up to ARC_LIFT_MAX, CSS px. */
+export const ARC_LIFT_MAX = 160;
+/** One full flat spin (rotateZ) per flight, turning the way the card flies, deg. */
+export const SPIN_DEG = 360;
+/** The card swells by this fraction at the top of the arc, as if nearer the eye. */
+const FLIGHT_PUFF = 0.06;
+/** Keyframes along the arc (straight segments in between). */
+const ARC_STEPS = 8;
 
 export function reducedMotion(): boolean {
   return matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -43,24 +65,34 @@ export interface ArcPoint {
 }
 
 /**
- * The flight from a card's bottom centre to (dx, dy), ending at scale k: it rises in an arc, tilts
- * toward where it is going, lands upright, squashes and settles.
+ * Keyframes of a flight lasting `ms`: the card's centre moves by (dx, dy) and it ends at scale k (h is
+ * its unscaled height). It pops in place to POP_SCALE for `popMs` (0: no pop), flies a high arc with one
+ * full flat spin, lands on the discard, squashes and rebounds with its bottom edge kept on the discard,
+ * and settles upright. Transforms are about the card's centre.
  */
-export function arcPath(dx: number, dy: number, k: number): ArcPoint[] {
-  const lift = Math.min(110, 30 + Math.abs(dx) * 0.25 + Math.max(dy, 0) * 0.35);
-  const tilt = dx < 0 ? -12 : 12;
-  const mid = (offset: number, u: number, rot: number, puff: number): ArcPoint => {
-    const s = (1 + (k - 1) * u) * puff;
-    return { offset, x: dx * u, y: dy * u - 4 * lift * u * (1 - u), rot, sx: s, sy: s };
-  };
-  return [
-    { offset: 0, x: 0, y: 0, rot: 0, sx: 1, sy: 1 },
-    mid(0.25, 0.4, tilt, 1.06),
-    mid(0.5, 0.75, tilt * 0.6, 1.04),
-    { offset: 0.72, x: dx, y: dy, rot: 0, sx: k, sy: k },
-    { offset: 0.86, x: dx, y: dy, rot: 0, sx: k * 1.12, sy: k * 0.88 },
-    { offset: 1, x: dx, y: dy, rot: 0, sx: k, sy: k },
-  ];
+export function arcPath(dx: number, dy: number, k: number, h: number, ms: number, popMs: number): ArcPoint[] {
+  const lift = Math.min(ARC_LIFT_MAX, ARC_LIFT_MIN + Math.abs(dx) * 0.3 + Math.max(dy, 0) * 0.4);
+  const spin = dx < 0 ? -SPIN_DEG : SPIN_DEG;
+  const start = popMs / ms;
+  const land = (ms - SQUASH_MS) / ms;
+  const s0 = popMs > 0 ? POP_SCALE : 1;
+  const path: ArcPoint[] = [{ offset: 0, x: 0, y: 0, rot: 0, sx: 1, sy: 1 }];
+  if (popMs > 0) path.push({ offset: start, x: 0, y: 0, rot: 0, sx: s0, sy: s0 });
+  for (let i = 1; i < ARC_STEPS; i++) {
+    const u = i / ARC_STEPS;
+    const s = (s0 + (k - s0) * u) * (1 + FLIGHT_PUFF * 4 * u * (1 - u));
+    path.push({ offset: start + (land - start) * u, x: dx * u, y: dy * u - 4 * lift * u * (1 - u), rot: spin * u, sx: s, sy: s });
+  }
+  // On the discard: moving the centre by (k - sy) * h / 2 keeps the bottom edge put while sy changes.
+  for (const [offset, sx, sy] of [
+    [land, k, k],
+    [land + (1 - land) * 0.45, k * (1 + SQUASH), k * (1 - SQUASH)],
+    [land + (1 - land) * 0.75, k * (1 - SQUASH / 3), k * (1 + SQUASH / 3)],
+    [1, k, k],
+  ]) {
+    path.push({ offset, x: dx, y: dy + ((k - sy) * h) / 2, rot: spin, sx, sy });
+  }
+  return path;
 }
 
 /** Short shake for a tap the game refused (a brief fade under reduced motion). No penalty. */
@@ -111,9 +143,10 @@ export function fadeIn(el: HTMLElement): void {
 }
 
 /**
- * A card copy flies in an arc from `from` to `to` (viewport rects, measured by the caller) and lands
- * with a squash. With `back`, it starts face-down and flips face-up on the way. Resolves when it lands;
- * never rejects. Under reduced motion a face-up card fades out where it was and this resolves at once.
+ * A card copy flies in an arc from `from` to `to` (viewport rects, measured by the caller), spinning once,
+ * and lands with a squash. A table card (no `back`) pops first and takes PLAY_FLY_MS; a drawn card (with
+ * `back`) starts face-down, flips face-up (rotateY) on the way and takes DRAW_FLY_MS. Resolves when it
+ * lands; never rejects. Under reduced motion a face-up card fades out where it was and this resolves at once.
  */
 export function flyCard(layer: HTMLElement, from: DOMRect, to: DOMRect, face: string, back?: string): Promise<void> {
   if (from.width === 0) return Promise.resolve();
@@ -134,23 +167,24 @@ export function flyCard(layer: HTMLElement, from: DOMRect, to: DOMRect, face: st
     return Promise.resolve();
   }
   layer.append(el);
-  // The flyer's transform origin is its bottom centre, so the squash stays on the discard.
+  // Centre to centre: the flyer spins and scales about its centre (arcPath keeps the squash on the discard).
   const dx = to.left + to.width / 2 - (from.left + from.width / 2);
-  const dy = to.bottom - from.bottom;
-  const path = arcPath(dx, dy, to.width / from.width);
-  const timing: KeyframeAnimationOptions = { duration: FLY_MS, easing: 'linear', fill: 'forwards' };
+  const dy = to.top + to.height / 2 - (from.top + from.height / 2);
+  const ms = back ? DRAW_FLY_MS : PLAY_FLY_MS;
+  const path = arcPath(dx, dy, to.width / from.width, from.height, ms, back ? 0 : POP_IN_MS);
+  const timing: KeyframeAnimationOptions = { duration: ms, easing: 'linear', fill: 'forwards' };
   const anims = [
     el.animate(
       path.map((p) => ({
         offset: p.offset,
-        transform: `translate(${p.x}px, ${p.y}px) rotate(${p.rot}deg) scale(${p.sx}, ${p.sy})`,
+        transform: `translate(${p.x}px, ${p.y}px) rotateZ(${p.rot}deg) scale(${p.sx}, ${p.sy})`,
       })),
       timing,
     ),
   ];
   if (back) {
     const inner = el.firstElementChild as HTMLElement;
-    const landed = path.find((p) => p.x === dx && p.y === dy && p.offset > 0)!.offset;
+    const landed = (ms - SQUASH_MS) / ms;
     anims.push(
       inner.animate(
         [{ transform: 'rotateY(180deg)' }, { transform: 'rotateY(0deg)', offset: landed }, { transform: 'rotateY(0deg)' }],
@@ -164,9 +198,14 @@ export function flyCard(layer: HTMLElement, from: DOMRect, to: DOMRect, face: st
   );
 }
 
+/** Each board card's latest flip, so an older flip settling does not end a newer one's 3D mode. */
+const flips = new WeakMap<HTMLElement, Animation>();
+
 /**
- * 3D flip of a board card whose exposure just changed (its `.up` class is already set). Uncovered
- * cards flip up a beat after the covering card leaves. Reduced motion: the card fades in instead.
+ * 3D flip of a board card whose exposure just changed (its `.up` class is already set). Cards are flat
+ * at rest (CSS shows the face `.up` picks); `.flipping` makes the card a 3D scene only while this runs,
+ * including the delay, where `fill: 'backwards'` holds the old side. Uncovered cards flip up a beat after
+ * the covering card leaves. Reduced motion: the card fades in instead, with no 3D.
  */
 export function flipCard(card: HTMLElement, up: boolean): void {
   if (reducedMotion()) {
@@ -176,7 +215,9 @@ export function flipCard(card: HTMLElement, up: boolean): void {
   const inner = card.firstElementChild as HTMLElement;
   const from = up ? 180 : 0;
   const to = up ? 0 : 180;
-  inner.animate(
+  flips.get(card)?.cancel(); // a superseded flip must not keep turning the card after it goes flat
+  card.classList.add('flipping');
+  const anim = inner.animate(
     [
       { transform: `rotateY(${from}deg) scale(1)` },
       { transform: `rotateY(90deg) scale(1.12)`, offset: 0.5 },
@@ -184,6 +225,11 @@ export function flipCard(card: HTMLElement, up: boolean): void {
     ],
     { duration: FLIP_MS, delay: up ? 90 : 0, easing: 'ease-in-out', fill: 'backwards' },
   );
+  flips.set(card, anim);
+  const done = (): void => {
+    if (flips.get(card) === anim) card.classList.remove('flipping');
+  };
+  anim.finished.then(done, done);
 }
 
 /** A floating label at (x, y): rises and fades (only fades under reduced motion). */

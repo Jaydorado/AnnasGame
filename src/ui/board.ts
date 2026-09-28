@@ -5,8 +5,7 @@
 import type { Card, Top } from '../core/cards';
 import { isExposed, type Layout } from '../core/layout';
 import { cardBackSvg, cardFaceSvg, wildCardSvg } from './art/cardArt';
-import { fitBoard } from './boardFit';
-import { hudBoxes } from './frame';
+import type { BoardFit } from './boardFit';
 import { flipCard } from './fx';
 
 const SUIT_NAMES = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
@@ -25,8 +24,8 @@ export interface Board {
   slot(i: number): HTMLButtonElement;
   /** Syncs slots with the table: hides removed cards, flips cards whose exposure changed. */
   update(table: readonly (Card | null)[]): void;
-  /** Sizes and places the cards for the board area's current size. */
-  fit(): void;
+  /** Sizes and places the cards for a fit of the board area (see levelFrame). */
+  fit(f: BoardFit): void;
   destroy(): void;
 }
 
@@ -34,6 +33,7 @@ export function createBoard(
   area: HTMLElement,
   layout: Layout,
   table: readonly (Card | null)[],
+  fit: BoardFit,
   onTap: (slot: number, el: HTMLButtonElement) => void,
 ): Board {
   const el = document.createElement('div');
@@ -78,8 +78,7 @@ export function createBoard(
       });
       dealt = true;
     },
-    fit() {
-      const f = fitBoard(area.clientWidth, area.clientHeight, layout, hudBoxes(area.clientWidth));
+    fit(f) {
       layout.slots.forEach((s, i) => {
         const st = slots[i].style;
         st.left = `${f.offsetX + s.x * f.cardW}px`;
@@ -93,6 +92,6 @@ export function createBoard(
   // Initial state is applied before insertion so nothing transitions on deal.
   board.update(table);
   area.append(el);
-  board.fit();
+  board.fit(fit);
   return board;
 }
