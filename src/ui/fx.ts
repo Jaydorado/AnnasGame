@@ -215,6 +215,7 @@ export function flipCard(card: HTMLElement, up: boolean): void {
   const inner = card.firstElementChild as HTMLElement;
   const from = up ? 180 : 0;
   const to = up ? 0 : 180;
+  flips.get(card)?.cancel(); // a superseded flip must not keep turning the card after it goes flat
   card.classList.add('flipping');
   const anim = inner.animate(
     [
