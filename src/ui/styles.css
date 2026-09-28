@@ -727,10 +727,10 @@ body::after {
   pointer-events: none;
 }
 
-/* Flights scale and squash around the bottom centre, so the landing squash sits on the discard. */
+/* Flights spin and scale about the card's centre; arcPath moves the centre so the landing squash sits on the discard. */
 .flyer {
   position: absolute;
-  transform-origin: 50% 100%;
+  transform-origin: 50% 50%;
 }
 
 .sparkle {
